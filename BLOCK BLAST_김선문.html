@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>블록 퍼즐 & 커스텀 디자이너</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap');
+        
+        body {
+            font-family: 'Outfit', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+            background-color: #f8fafc;
+        }
+
+        /* Light Glassmorphism effects */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
+        }
+
+        .glass-btn {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(203, 213, 225, 0.8);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+            transition: all 0.2s ease;
+        }
+
+        .glass-btn:hover {
+            background: #ffffff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        .glass-btn:active {
+            transform: translateY(0);
+        }
+
+        /* Grid slot styles & drag highlight animations */
+        .grid-slot {
+            transition: background-color 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;
+        }
+
+        .grid-slot.highlight {
+            background-color: rgba(99, 102, 241, 0.35) !important;
+            border-color: rgba(79, 70, 229, 0.8) !important;
+            transform: scale(0.96);
+        }
+
+        .grid-slot.invalid {
+            background-color: rgba(239, 68, 68, 0.35) !important;
+            border-color: rgba(220, 38, 38, 0.8) !important;
+        }
+
+        /* Block clear animation */
+        @keyframes popClear {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.8; }
+            100% { transform: scale(0); opacity: 0; }
+        }
+
+        .clearing-cell {
+            animation: popClear 0.3s ease-out forwards;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(241, 245, 249, 1);
+            border-radius: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(203, 213, 225, 1);
+            border-radius: 8px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(148, 163, 184, 1);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col justify-between items-center p-3 sm:p-6 overflow-x-hidden">
+
+    <!-- Header & Scoreboard -->
+    <header class="w-full max-w-md flex flex-col gap-3 mb-2">
+        <div class="flex justify-between items-center">
+            <h1 class="text-2xl sm:text-3xl font-extrabold tracking-wider bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 bg-clip-text text-transparent flex items-center gap-2">
+                <i class="fa-solid fa-cubes text-indigo-600"></i> BLOCK BLAST
+            </h1>
+            <div class="flex items-center gap-2">
+                <!-- Restart Button -->
+                <button id="restartBtn" class="glass-btn px-3 py-2 rounded-xl text-sm font-bold text-slate-700 hover:text-indigo-600 flex items-center gap-1.5 active:scale-95 transition-all">
+                    <i class="fa-solid fa-rotate-right text-indigo-500"></i> 다시하기
+                </button>
+                <!-- Sound Toggle -->
+                <button id="soundBtn" class="glass-btn w-10 h-10 rounded-xl flex items-center justify-center text-slate-600 hover:text-indigo-600">
+                    <i class="fa-solid fa-volume-high text-lg"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Score Container -->
+        <div class="grid grid-cols-2 gap-3">
+            <div class="glass-panel p-3 rounded-2xl flex flex-col items-center justify-center relative overflow-hidden">
+                <span class="text-xs font-bold text-slate-400 tracking-wider">SCORE</span>
+                <span id="scoreText" class="text-2xl sm:text-3xl font-extrabold text-indigo-600">0</span>
+            </div>
+            <div class="glass-panel p-3 rounded-2xl flex flex-col items-center justify-center relative overflow-hidden">
+                <span class="text-xs font-bold text-slate-400 tracking-wider">BEST</span>
+                <span id="bestScoreText" class="text-2xl sm:text-3xl font-extrabold text-amber-500">0</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Tabs Navigation -->
+    <nav class="w-full max-w-md glass-panel p-1.5 rounded-2xl flex gap-1 mb-3">
+        <button id="tabGame" class="flex-1 py-2 px-3 rounded-xl font-bold text-sm transition-all duration-200 bg-indigo-600 text-white shadow-md flex items-center justify-center gap-2">
+            <i class="fa-solid fa-gamepad"></i> 퍼즐 플레이
+        </button>
+        <button id="tabDesigner" class="flex-1 py-2 px-3 rounded-xl font-bold text-sm transition-all duration-200 text-slate-500 hover:text-indigo-600 flex items-center justify-center gap-2">
+            <i class="fa-solid fa-pen-ruler"></i> 커스텀 디자이너
+        </button>
+    </nav>
+
+    <!-- Main Area: Game View -->
+    <main id="gameView" class="w-full max-w-md flex flex-col items-center gap-4 flex-1">
+        <!-- Combo Indicator -->
+        <div id="comboContainer" class="h-8 flex items-center justify-center">
+            <span id="comboBadge" class="hidden px-4 py-1 rounded-full bg-gradient-to-r from-amber-400 to-rose-500 text-white text-xs font-extrabold tracking-widest uppercase shadow-md animate-bounce">
+                COMBO x2!
+            </span>
+        </div>
+
+        <!-- 8x8 Board Container -->
+        <div id="boardContainer" class="w-full aspect-square glass-panel p-2.5 rounded-3xl relative shadow-xl flex items-center justify-center bg-white/70">
+            <div id="board" class="grid grid-cols-8 gap-1.5 w-full h-full">
+                <!-- Cells generated via JS -->
+            </div>
+        </div>
+
+        <!-- Custom Mode Toggle Bar -->
+        <div class="w-full glass-panel px-4 py-2.5 rounded-2xl flex items-center justify-between text-xs sm:text-sm">
+            <span class="text-slate-700 font-semibold flex items-center gap-2">
+                <i class="fa-solid fa-wand-magic-sparkles text-indigo-500"></i>
+                내가 만든 커스텀 블록 사용하기
+            </span>
+            <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="toggleCustomBlocks" class="sr-only peer" checked>
+                <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+            </label>
+        </div>
+
+        <!-- Deck (3 Slots for blocks) -->
+        <div id="blockDeck" class="w-full grid grid-cols-3 gap-3 h-28 sm:h-32 my-auto">
+            <!-- 3 block options inserted here -->
+        </div>
+    </main>
+
+    <!-- Main Area: Custom Block Designer View -->
+    <main id="designerView" class="w-full max-w-md flex-col items-center gap-4 flex-1 hidden">
+        <div class="glass-panel w-full p-4 rounded-3xl flex flex-col items-center gap-4 bg-white/80">
+            <div class="w-full flex justify-between items-center border-b border-slate-200 pb-2">
+                <h2 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-paintbrush text-indigo-600"></i> 커스텀 블록 조각 제작 (5x5)
+                </h2>
+                <button id="clearDesignBtn" class="text-xs text-rose-500 hover:text-rose-600 font-semibold flex items-center gap-1">
+                    <i class="fa-solid fa-trash-can"></i> 전체 지우기
+                </button>
+            </div>
+
+            <!-- 5x5 Designer Canvas Grid -->
+            <div id="designerGrid" class="grid grid-cols-5 gap-2 w-64 h-64 bg-slate-100 p-3 rounded-2xl border border-slate-200 shadow-inner">
+                <!-- 25 clickable grid cells -->
+            </div>
+
+            <!-- Color Palette Picker -->
+            <div class="w-full flex flex-col gap-2">
+                <span class="text-xs font-bold text-slate-500">블록 색상 선택:</span>
+                <div id="colorPalette" class="flex gap-2 justify-between w-full overflow-x-auto pb-1">
+                    <!-- Colors added by JS -->
+                </div>
+            </div>
+
+            <!-- Save Custom Block Form -->
+            <div class="w-full flex gap-2">
+                <input type="text" id="customBlockName" placeholder="블록 이름 (예: 십자가)" maxlength="10"
+                    class="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white shadow-inner">
+                <button id="saveCustomBlockBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl text-sm transition-all shadow-md flex items-center gap-1">
+                    <i class="fa-solid fa-plus"></i> 저장하기
+                </button>
+            </div>
+        </div>
+
+        <!-- Saved Custom Blocks List -->
+        <div class="glass-panel w-full p-4 rounded-3xl flex flex-col gap-3 bg-white/80">
+            <h3 class="font-bold text-sm text-slate-700 flex items-center gap-2">
+                <i class="fa-solid fa-layer-group text-violet-600"></i> 내가 만든 블록 목록 (<span id="customCount">0</span>/10)
+            </h3>
+            <div id="savedBlocksList" class="grid grid-cols-2 gap-3 max-h-48 overflow-y-auto pr-1">
+                <!-- List items added by JS -->
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-4 text-center text-xs text-slate-400 font-medium">
+        Block Blast & Custom Designer &copy; 2026
+    </footer>
+
+    <!-- Game Over Modal -->
+    <div id="gameOverModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden opacity-0 transition-opacity duration-300">
+        <div class="glass-panel max-w-sm w-full p-6 rounded-3xl flex flex-col items-center text-center gap-4 bg-white border border-slate-200 shadow-2xl transform scale-90 transition-transform duration-300" id="modalContent">
+            <div class="w-16 h-16 rounded-full bg-rose-100 text-rose-500 flex items-center justify-center text-3xl mb-1">
+                <i class="fa-solid fa-ghost"></i>
+            </div>
+            <div>
+                <h2 class="text-2xl font-extrabold text-slate-800">게임 오버!</h2>
+                <p class="text-sm text-slate-500 mt-1">더 이상 블록을 놓을 수 있는 공간이 없습니다.</p>
+            </div>
+
+            <div class="w-full bg-slate-50 p-4 rounded-2xl flex justify-around my-2 border border-slate-100">
+                <div>
+                    <div class="text-xs font-bold text-slate-400">최종 점수</div>
+                    <div id="finalScore" class="text-2xl font-extrabold text-indigo-600">0</div>
+                </div>
+                <div class="border-r border-slate-200"></div>
+                <div>
+                    <div class="text-xs font-bold text-slate-400">최고 기록</div>
+                    <div id="finalBest" class="text-2xl font-extrabold text-amber-500">0</div>
+                </div>
+            </div>
+
+            <button id="modalRestartBtn" class="w-full py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-bold rounded-xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2">
+                <i class="fa-solid fa-rotate-right"></i> 다시 시작하기
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- Web Audio API Synthesizer ---
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+        let soundEnabled = true;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new AudioContext();
+            }
+        }
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            initAudio();
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'place') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.exponentialRampToValueAtTime(150, now + 0.08);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                osc.start(now);
+                osc.stop(now + 0.08);
+            } else if (type === 'clear') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.exponentialRampToValueAtTime(880, now + 0.2);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            } else if (type === 'combo') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, now); // C5
+                osc.frequency.setValueAtTime(659.25, now + 0.08); // E5
+                osc.frequency.setValueAtTime(783.99, now + 0.16); // G5
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (type === 'gameover') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(220, now);
+                osc.frequency.exponentialRampToValueAtTime(110, now + 0.4);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                osc.start(now);
+                osc.stop(now + 0.4);
+            }
+        }
+
+        // --- Pastel Light Palette Definitions ---
+        const COLORS = [
+            '#3b82f6', // Bright Blue
+            '#10b981', // Emerald
+            '#f59e0b', // Amber
+            '#ec4899', // Pink
+            '#8b5cf6', // Purple
+            '#06b6d4', // Cyan
+            '#f97316'  // Orange
+        ];
+
+        // Default Classic Block Templates
+        const CLASSIC_TEMPLATES = [
+            { name: "Single", matrix: [[1]], color: "#3b82f6" },
+            { name: "Domino H", matrix: [[1, 1]], color: "#10b981" },
+            { name: "Domino V", matrix: [[1], [1]], color: "#10b981" },
+            { name: "Trio H", matrix: [[1, 1, 1]], color: "#f59e0b" },
+            { name: "Trio V", matrix: [[1], [1], [1]], color: "#f59e0b" },
+            { name: "Square 2x2", matrix: [[1, 1], [1, 1]], color: "#ec4899" },
+            { name: "Square 3x3", matrix: [[1, 1, 1], [1, 1, 1], [1, 1, 1]], color: "#8b5cf6" },
+            { name: "L-Right", matrix: [[1, 0], [1, 0], [1, 1]], color: "#06b6d4" },
+            { name: "L-Left", matrix: [[0, 1], [0, 1], [1, 1]], color: "#f97316" },
+            { name: "T-Piece", matrix: [[1, 1, 1], [0, 1, 0]], color: "#3b82f6" },
+            { name: "Line 4H", matrix: [[1, 1, 1, 1]], color: "#10b981" },
+            { name: "Line 4V", matrix: [[1], [1], [1], [1]], color: "#10b981" }
+        ];
+
+        // --- Game State ---
+        const BOARD_SIZE = 8;
+        let boardState = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
+        let score = 0;
+        let bestScore = parseInt(localStorage.getItem('block_blast_best') || '0');
+        let currentDeck = [null, null, null];
+        let comboCount = 0;
+        let customBlocks = JSON.parse(localStorage.getItem('block_blast_customs') || '[]');
+
+        // --- Designer State ---
+        let designerGridState = Array(5).fill(null).map(() => Array(5).fill(0));
+        let selectedColor = COLORS[0];
+
+        // --- DOM Elements ---
+        const boardEl = document.getElementById('board');
+        const blockDeckEl = document.getElementById('blockDeck');
+        const scoreText = document.getElementById('scoreText');
+        const bestScoreText = document.getElementById('bestScoreText');
+        const comboBadge = document.getElementById('comboBadge');
+        const restartBtn = document.getElementById('restartBtn');
+        const modalRestartBtn = document.getElementById('modalRestartBtn');
+        const soundBtn = document.getElementById('soundBtn');
+        const gameOverModal = document.getElementById('gameOverModal');
+        const modalContent = document.getElementById('modalContent');
+        const toggleCustomBlocks = document.getElementById('toggleCustomBlocks');
+
+        // Navigation Tabs
+        const tabGame = document.getElementById('tabGame');
+        const tabDesigner = document.getElementById('tabDesigner');
+        const gameView = document.getElementById('gameView');
+        const designerView = document.getElementById('designerView');
+
+        // --- Initialize Board ---
+        function createBoardUI() {
+            boardEl.innerHTML = '';
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    const slot = document.createElement('div');
+                    slot.className = 'grid-slot rounded-lg bg-slate-100/80 border border-slate-200/80 w-full h-full flex items-center justify-center';
+                    slot.dataset.row = r;
+                    slot.dataset.col = c;
+                    boardEl.appendChild(slot);
+                }
+            }
+        }
+
+        function updateBoardUI() {
+            const slots = boardEl.children;
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    const index = r * BOARD_SIZE + c;
+                    const slot = slots[index];
+                    const color = boardState[r][c];
+
+                    if (color) {
+                        slot.style.backgroundColor = color;
+                        slot.style.borderColor = 'rgba(255, 255, 255, 0.6)';
+                        slot.style.boxShadow = `inset 0 0 6px rgba(255, 255, 255, 0.5), 0 2px 4px rgba(0,0,0,0.1)`;
+                    } else {
+                        slot.style.backgroundColor = '';
+                        slot.style.borderColor = '';
+                        slot.style.boxShadow = '';
+                    }
+                }
+            }
+        }
+
+        // --- Deck Management ---
+        function generateDeck() {
+            const useCustom = toggleCustomBlocks.checked && customBlocks.length > 0;
+            const pool = useCustom ? [...CLASSIC_TEMPLATES, ...customBlocks] : [...CLASSIC_TEMPLATES];
+
+            for (let i = 0; i < 3; i++) {
+                if (currentDeck[i] === null) {
+                    const randomBlock = pool[Math.floor(Math.random() * pool.length)];
+                    currentDeck[i] = JSON.parse(JSON.stringify(randomBlock));
+                }
+            }
+            renderDeck();
+            checkGameOver();
+        }
+
+        function renderDeck() {
+            blockDeckEl.innerHTML = '';
+            currentDeck.forEach((block, index) => {
+                const container = document.createElement('div');
+                container.className = 'glass-panel rounded-2xl flex items-center justify-center relative cursor-grab active:cursor-grabbing p-2 transition-all hover:border-slate-300 bg-white/70';
+                container.dataset.deckIndex = index;
+
+                if (!block) {
+                    blockDeckEl.appendChild(container);
+                    return;
+                }
+
+                // Render miniature block in slot
+                const miniGrid = createBlockGridUI(block.matrix, block.color, 16, 2);
+                container.appendChild(miniGrid);
+
+                setupDragAndDrop(container, index);
+                blockDeckEl.appendChild(container);
+            });
+        }
+
+        // Helper to construct grid UI for blocks (used in deck, proxy, and list)
+        function createBlockGridUI(matrix, color, cellSizePx, gapPx = 2) {
+            const rows = matrix.length;
+            const cols = matrix[0].length;
+
+            const grid = document.createElement('div');
+            grid.style.display = 'grid';
+            grid.style.gridTemplateRows = `repeat(${rows}, ${cellSizePx}px)`;
+            grid.style.gridTemplateColumns = `repeat(${cols}, ${cellSizePx}px)`;
+            grid.style.gap = `${gapPx}px`;
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const cell = document.createElement('div');
+                    if (matrix[r][c] === 1) {
+                        cell.className = 'rounded-md';
+                        cell.style.backgroundColor = color;
+                        cell.style.boxShadow = 'inset 0 0 4px rgba(255,255,255,0.5)';
+                    } else {
+                        cell.style.backgroundColor = 'transparent';
+                    }
+                    grid.appendChild(cell);
+                }
+            }
+            return grid;
+        }
+
+        let activeDragIndex = null;
+        let dragProxy = null;
+        let dragOffsetTouchY = 60; // Offset block preview above finger for mobile visibility
+
+        function setupDragAndDrop(element, deckIndex) {
+            const onStart = (e) => {
+                if (!currentDeck[deckIndex]) return;
+                initAudio();
+                activeDragIndex = deckIndex;
+
+                const block = currentDeck[deckIndex];
+                const touch = e.touches ? e.touches[0] : e;
+
+                // 1. Determine exact slot dimension on main board so drag preview scale matches 1:1
+                const firstSlot = boardEl.children[0];
+                const slotRect = firstSlot.getBoundingClientRect();
+                const cellSize = slotRect.width;
+
+                // 2. Create proxy element matching board slot cell sizing
+                dragProxy = document.createElement('div');
+                dragProxy.className = 'fixed pointer-events-none z-50 opacity-95 filter drop-shadow-xl';
+                
+                // Gap matches grid-cols-8 gap-1.5 (6px)
+                const proxyGrid = createBlockGridUI(block.matrix, block.color, cellSize, 6);
+                dragProxy.appendChild(proxyGrid);
+                document.body.appendChild(dragProxy);
+
+                // Hide original card block while dragging
+                element.style.opacity = '0.3';
+
+                updateProxyPosition(touch.clientX, touch.clientY);
+                highlightBoardHover(touch.clientX, touch.clientY);
+
+                window.addEventListener('mousemove', onMove);
+                window.addEventListener('mouseup', onEnd);
+                window.addEventListener('touchmove', onMove, { passive: false });
+                window.addEventListener('touchend', onEnd);
+            };
+
+            element.addEventListener('mousedown', onStart);
+            element.addEventListener('touchstart', onStart, { passive: false });
+        }
+
+        function getTargetBoardCoordinate(x, y) {
+            if (activeDragIndex === null || !currentDeck[activeDragIndex]) return null;
+
+            const block = currentDeck[activeDragIndex];
+            const rows = block.matrix.length;
+            const cols = block.matrix[0].length;
+
+            const boardRect = boardEl.getBoundingClientRect();
+            const firstSlot = boardEl.children[0].getBoundingClientRect();
+            const slotSize = firstSlot.width;
+
+            // Compute block center in pixels
+            const blockWidthPx = cols * slotSize + (cols - 1) * 6;
+            const blockHeightPx = rows * slotSize + (rows - 1) * 6;
+
+            // Offset pointer to center of block preview (and lift slightly vertically for touch usability)
+            const targetX = x - (blockWidthPx / 2);
+            const targetY = (y - dragOffsetTouchY) - (blockHeightPx / 2);
+
+            // Compute board relative position
+            const relativeX = targetX - boardRect.left;
+            const relativeY = targetY - boardRect.top;
+
+            // Calculate grid slot position
+            const col = Math.round(relativeX / (boardRect.width / BOARD_SIZE));
+            const row = Math.round(relativeY / (boardRect.height / BOARD_SIZE));
+
+            return { row, col, targetX, targetY };
+        }
+
+        function updateProxyPosition(x, y) {
+            if (!dragProxy) return;
+            const coord = getTargetBoardCoordinate(x, y);
+            if (coord) {
+                dragProxy.style.left = `${coord.targetX}px`;
+                dragProxy.style.top = `${coord.targetY}px`;
+            }
+        }
+
+        function highlightBoardHover(x, y) {
+            clearHighlights();
+            const coord = getTargetBoardCoordinate(x, y);
+            if (!coord) return;
+
+            const block = currentDeck[activeDragIndex];
+            const { row, col } = coord;
+
+            if (canPlaceBlock(block.matrix, row, col)) {
+                applyHighlight(block.matrix, row, col, 'highlight');
+            } else if (row >= -2 && row < BOARD_SIZE + 2 && col >= -2 && col < BOARD_SIZE + 2) {
+                // Apply invalid highlight if drag is near/over board
+                applyHighlight(block.matrix, row, col, 'invalid');
+            }
+        }
+
+        function applyHighlight(matrix, startR, startC, className) {
+            const rows = matrix.length;
+            const cols = matrix[0].length;
+            const slots = boardEl.children;
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    if (matrix[r][c] === 1) {
+                        const targetR = startR + r;
+                        const targetC = startC + c;
+                        if (targetR >= 0 && targetR < BOARD_SIZE && targetC >= 0 && targetC < BOARD_SIZE) {
+                            const index = targetR * BOARD_SIZE + targetC;
+                            if (slots[index]) {
+                                slots[index].classList.add(className);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        function clearHighlights() {
+            const slots = boardEl.children;
+            for (let i = 0; i < slots.length; i++) {
+                slots[i].classList.remove('highlight', 'invalid');
+            }
+        }
+
+        function onMove(e) {
+            if (activeDragIndex === null || !dragProxy) return;
+            if (e.preventDefault) e.preventDefault();
+
+            const touch = e.touches ? e.touches[0] : e;
+            updateProxyPosition(touch.clientX, touch.clientY);
+            highlightBoardHover(touch.clientX, touch.clientY);
+        }
+
+        function onEnd(e) {
+            if (activeDragIndex === null) return;
+
+            const touch = e.changedTouches ? e.changedTouches[0] : e;
+            const coord = getTargetBoardCoordinate(touch.clientX, touch.clientY);
+
+            if (coord) {
+                const { row, col } = coord;
+                const block = currentDeck[activeDragIndex];
+
+                if (canPlaceBlock(block.matrix, row, col)) {
+                    placeBlock(block, row, col);
+                    currentDeck[activeDragIndex] = null;
+
+                    if (currentDeck.every(b => b === null)) {
+                        generateDeck();
+                    } else {
+                        renderDeck();
+                        checkGameOver();
+                    }
+                } else {
+                    // Reset card opacity if not placed
+                    renderDeck();
+                }
+            } else {
+                renderDeck();
+            }
+
+            if (dragProxy) {
+                dragProxy.remove();
+                dragProxy = null;
+            }
+            clearHighlights();
+            activeDragIndex = null;
+
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onEnd);
+            window.removeEventListener('touchmove', onMove);
+            window.removeEventListener('touchend', onEnd);
+        }
+
+        // --- Game Rule Mechanics ---
+        function canPlaceBlock(matrix, startR, startC) {
+            const rows = matrix.length;
+            const cols = matrix[0].length;
+
+            if (startR < 0 || startC < 0 || startR + rows > BOARD_SIZE || startC + cols > BOARD_SIZE) {
+                return false;
+            }
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    if (matrix[r][c] === 1) {
+                        if (boardState[startR + r][startC + c] !== null) {
+                            return false;
+                        }
+                    }
+                }
+            }
+            return true;
+        }
+
+        function placeBlock(block, startR, startC) {
+            const rows = block.matrix.length;
+            const cols = block.matrix[0].length;
+            let placedCount = 0;
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    if (block.matrix[r][c] === 1) {
+                        boardState[startR + r][startC + c] = block.color;
+                        placedCount++;
+                    }
+                }
+            }
+
+            playSound('place');
+            addScore(placedCount * 10);
+            updateBoardUI();
+            checkAndClearLines();
+        }
+
+        function checkAndClearLines() {
+            let fullRows = [];
+            let fullCols = [];
+
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                if (boardState[r].every(cell => cell !== null)) {
+                    fullRows.push(r);
+                }
+            }
+
+            for (let c = 0; c < BOARD_SIZE; c++) {
+                let full = true;
+                for (let r = 0; r < BOARD_SIZE; r++) {
+                    if (boardState[r][c] === null) {
+                        full = false;
+                        break;
+                    }
+                }
+                if (full) fullCols.push(c);
+            }
+
+            const totalLines = fullRows.length + fullCols.length;
+
+            if (totalLines > 0) {
+                comboCount++;
+                const comboMultiplier = comboCount;
+                const lineScore = totalLines * 100 * comboMultiplier;
+
+                addScore(lineScore);
+                showComboBadge(comboCount);
+
+                if (comboCount > 1) {
+                    playSound('combo');
+                } else {
+                    playSound('clear');
+                }
+
+                const slots = boardEl.children;
+                const cellsToClear = new Set();
+
+                fullRows.forEach(r => {
+                    for (let c = 0; c < BOARD_SIZE; c++) cellsToClear.add(`${r},${c}`);
+                });
+                fullCols.forEach(c => {
+                    for (let r = 0; r < BOARD_SIZE; r++) cellsToClear.add(`${r},${c}`);
+                });
+
+                cellsToClear.forEach(coord => {
+                    const [r, c] = coord.split(',').map(Number);
+                    const index = r * BOARD_SIZE + c;
+                    slots[index].classList.add('clearing-cell');
+                });
+
+                setTimeout(() => {
+                    cellsToClear.forEach(coord => {
+                        const [r, c] = coord.split(',').map(Number);
+                        boardState[r][c] = null;
+                    });
+                    updateBoardUI();
+                    for (let i = 0; i < slots.length; i++) {
+                        slots[i].classList.remove('clearing-cell');
+                    }
+                }, 250);
+
+            } else {
+                comboCount = 0;
+                hideComboBadge();
+            }
+        }
+
+        function addScore(pts) {
+            score += pts;
+            scoreText.innerText = score.toLocaleString();
+            if (score > bestScore) {
+                bestScore = score;
+                bestScoreText.innerText = bestScore.toLocaleString();
+                localStorage.setItem('block_blast_best', bestScore.toString());
+            }
+        }
+
+        function showComboBadge(count) {
+            if (count > 1) {
+                comboBadge.innerText = `COMBO x${count}!`;
+                comboBadge.classList.remove('hidden');
+            }
+        }
+
+        function hideComboBadge() {
+            comboBadge.classList.add('hidden');
+        }
+
+        function checkGameOver() {
+            let possible = false;
+
+            for (let i = 0; i < 3; i++) {
+                const block = currentDeck[i];
+                if (block === null) continue;
+
+                for (let r = 0; r < BOARD_SIZE; r++) {
+                    for (let c = 0; c < BOARD_SIZE; c++) {
+                        if (canPlaceBlock(block.matrix, r, c)) {
+                            possible = true;
+                            break;
+                        }
+                    }
+                    if (possible) break;
+                }
+                if (possible) break;
+            }
+
+            if (!possible && currentDeck.some(b => b !== null)) {
+                setTimeout(triggerGameOver, 400);
+            }
+        }
+
+        function triggerGameOver() {
+            playSound('gameover');
+            document.getElementById('finalScore').innerText = score.toLocaleString();
+            document.getElementById('finalBest').innerText = bestScore.toLocaleString();
+
+            gameOverModal.classList.remove('hidden');
+            setTimeout(() => {
+                gameOverModal.classList.remove('opacity-0');
+                modalContent.classList.remove('scale-90');
+                modalContent.classList.add('scale-100');
+            }, 10);
+        }
+
+        function restartGame() {
+            boardState = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
+            score = 0;
+            comboCount = 0;
+            currentDeck = [null, null, null];
+
+            scoreText.innerText = '0';
+            bestScoreText.innerText = bestScore.toLocaleString();
+            hideComboBadge();
+
+            modalContent.classList.remove('scale-100');
+            modalContent.classList.add('scale-90');
+            gameOverModal.classList.add('opacity-0');
+            setTimeout(() => {
+                gameOverModal.classList.add('hidden');
+            }, 300);
+
+            updateBoardUI();
+            generateDeck();
+        }
+
+        // --- Designer View Logic ---
+        function initDesignerUI() {
+            const gridEl = document.getElementById('designerGrid');
+            gridEl.innerHTML = '';
+
+            for (let r = 0; r < 5; r++) {
+                for (let c = 0; c < 5; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'rounded-lg bg-white border border-slate-200/80 cursor-pointer transition-all hover:border-slate-400 shadow-sm';
+                    cell.dataset.r = r;
+                    cell.dataset.c = c;
+                    cell.addEventListener('click', () => toggleDesignerCell(r, c, cell));
+                    gridEl.appendChild(cell);
+                }
+            }
+
+            const paletteEl = document.getElementById('colorPalette');
+            paletteEl.innerHTML = '';
+            COLORS.forEach((color, idx) => {
+                const btn = document.createElement('button');
+                btn.className = `w-8 h-8 rounded-xl flex-shrink-0 transition-transform ${idx === 0 ? 'ring-2 ring-indigo-500 scale-110' : 'opacity-80 hover:opacity-100'}`;
+                btn.style.backgroundColor = color;
+                btn.addEventListener('click', () => {
+                    selectedColor = color;
+                    Array.from(paletteEl.children).forEach(b => {
+                        b.classList.remove('ring-2', 'ring-indigo-500', 'scale-110');
+                        b.classList.add('opacity-80');
+                    });
+                    btn.classList.add('ring-2', 'ring-indigo-500', 'scale-110');
+                    btn.classList.remove('opacity-80');
+                });
+                paletteEl.appendChild(btn);
+            });
+
+            renderSavedBlocks();
+        }
+
+        function toggleDesignerCell(r, c, element) {
+            designerGridState[r][c] = designerGridState[r][c] === 1 ? 0 : 1;
+            if (designerGridState[r][c] === 1) {
+                element.style.backgroundColor = selectedColor;
+                element.style.boxShadow = 'inset 0 0 6px rgba(255,255,255,0.6)';
+            } else {
+                element.style.backgroundColor = '';
+                element.style.boxShadow = '';
+            }
+        }
+
+        function clearDesignerGrid() {
+            designerGridState = Array(5).fill(null).map(() => Array(5).fill(0));
+            const cells = document.getElementById('designerGrid').children;
+            for (let i = 0; i < cells.length; i++) {
+                cells[i].style.backgroundColor = '';
+                cells[i].style.boxShadow = '';
+            }
+        }
+
+        function saveCustomBlock() {
+            if (customBlocks.length >= 10) {
+                alert('최대 10개까지만 블록을 저장할 수 있습니다. 기존 블록을 삭제해 주세요.');
+                return;
+            }
+
+            let minR = 5, maxR = -1, minC = 5, maxC = -1;
+            let count = 0;
+
+            for (let r = 0; r < 5; r++) {
+                for (let c = 0; c < 5; c++) {
+                    if (designerGridState[r][c] === 1) {
+                        count++;
+                        if (r < minR) minR = r;
+                        if (r > maxR) maxR = r;
+                        if (c < minC) minC = c;
+                        if (c > maxC) maxC = c;
+                    }
+                }
+            }
+
+            if (count === 0) {
+                alert('그리드에 1개 이상의 블록 조각을 그려주세요!');
+                return;
+            }
+
+            let trimmedMatrix = [];
+            for (let r = minR; r <= maxR; r++) {
+                let row = [];
+                for (let c = minC; c <= maxC; c++) {
+                    row.push(designerGridState[r][c]);
+                }
+                trimmedMatrix.push(row);
+            }
+
+            const nameInput = document.getElementById('customBlockName');
+            const blockName = nameInput.value.trim() || `나만의 블록 #${customBlocks.length + 1}`;
+
+            const newBlock = {
+                id: Date.now(),
+                name: blockName,
+                matrix: trimmedMatrix,
+                color: selectedColor
+            };
+
+            customBlocks.push(newBlock);
+            localStorage.setItem('block_blast_customs', JSON.stringify(customBlocks));
+
+            nameInput.value = '';
+            clearDesignerGrid();
+            renderSavedBlocks();
+
+            if (window.confetti) {
+                confetti({
+                    particleCount: 40,
+                    spread: 60,
+                    origin: { y: 0.7 }
+                });
+            }
+        }
+
+        function renderSavedBlocks() {
+            const listEl = document.getElementById('savedBlocksList');
+            const countEl = document.getElementById('customCount');
+            countEl.innerText = customBlocks.length;
+            listEl.innerHTML = '';
+
+            if (customBlocks.length === 0) {
+                listEl.innerHTML = '<div class="col-span-2 text-center text-xs text-slate-400 py-4 font-medium">저장된 커스텀 블록이 없습니다.<br>위에서 직접 디자인해 보세요!</div>';
+                return;
+            }
+
+            customBlocks.forEach((block) => {
+                const card = document.createElement('div');
+                card.className = 'glass-panel p-2.5 rounded-2xl flex items-center justify-between gap-2 bg-white/90 border border-slate-200';
+
+                const left = document.createElement('div');
+                left.className = 'flex items-center gap-2 overflow-hidden';
+
+                const mini = createBlockGridUI(block.matrix, block.color, 12, 1);
+                const title = document.createElement('span');
+                title.className = 'text-xs font-bold text-slate-700 truncate';
+                title.innerText = block.name;
+
+                left.appendChild(mini);
+                left.appendChild(title);
+
+                const delBtn = document.createElement('button');
+                delBtn.className = 'text-slate-400 hover:text-rose-500 p-1 transition-colors';
+                delBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+                delBtn.addEventListener('click', () => {
+                    customBlocks = customBlocks.filter(b => b.id !== block.id);
+                    localStorage.setItem('block_blast_customs', JSON.stringify(customBlocks));
+                    renderSavedBlocks();
+                });
+
+                card.appendChild(left);
+                card.appendChild(delBtn);
+                listEl.appendChild(card);
+            });
+        }
+
+        // --- Event Listeners Setup ---
+        restartBtn.addEventListener('click', restartGame);
+        modalRestartBtn.addEventListener('click', restartGame);
+
+        soundBtn.addEventListener('click', () => {
+            soundEnabled = !soundEnabled;
+            soundBtn.innerHTML = soundEnabled ?
+                '<i class="fa-solid fa-volume-high text-lg"></i>' :
+                '<i class="fa-solid fa-volume-xmark text-lg text-rose-500"></i>';
+        });
+
+        tabGame.addEventListener('click', () => {
+            tabGame.className = 'flex-1 py-2 px-3 rounded-xl font-bold text-sm transition-all duration-200 bg-indigo-600 text-white shadow-md flex items-center justify-center gap-2';
+            tabDesigner.className = 'flex-1 py-2 px-3 rounded-xl font-bold text-sm transition-all duration-200 text-slate-500 hover:text-indigo-600 flex items-center justify-center gap-2';
+            gameView.classList.remove('hidden');
+            designerView.classList.add('hidden');
+            designerView.classList.remove('flex');
+        });
+
+        tabDesigner.addEventListener('click', () => {
+            tabDesigner.className = 'flex-1 py-2 px-3 rounded-xl font-bold text-sm transition-all duration-200 bg-indigo-600 text-white shadow-md flex items-center justify-center gap-2';
+            tabGame.className = 'flex-1 py-2 px-3 rounded-xl font-bold text-sm transition-all duration-200 text-slate-500 hover:text-indigo-600 flex items-center justify-center gap-2';
+            designerView.classList.remove('hidden');
+            designerView.classList.add('flex');
+            gameView.classList.add('hidden');
+        });
+
+        document.getElementById('clearDesignBtn').addEventListener('click', clearDesignerGrid);
+        document.getElementById('saveCustomBlockBtn').addEventListener('click', saveCustomBlock);
+
+        // Resize event to handle dynamic canvas or drag preview recalculations
+        window.addEventListener('resize', () => {
+            updateBoardUI();
+        });
+
+        // --- Window Load Init ---
+        window.onload = function () {
+            createBoardUI();
+            bestScoreText.innerText = bestScore.toLocaleString();
+            generateDeck();
+            initDesignerUI();
+        };
+    </script>
+</body>
+</html>

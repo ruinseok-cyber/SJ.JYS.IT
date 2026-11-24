@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>못피하면 죽순!</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Jua&display=swap');
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            margin: 0;
+            background: #020617;
+            color: #fff;
+            font-family: 'Jua', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #game-container {
+            position: relative;
+            width: 600px;
+            height: 720px;
+        }
+
+        canvas {
+            border: 2px solid rgba(56, 189, 248, 0.6);
+            background: #030712;
+            box-shadow: 0 0 35px rgba(56, 189, 248, 0.3), inset 0 0 40px rgba(0, 0, 0, 0.8);
+            border-radius: 24px;
+            display: block;
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(3, 7, 18, 0.93);
+            backdrop-filter: blur(16px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 24px;
+            padding: 24px;
+            overflow: hidden;
+        }
+
+        /* 메인화면 배경 비주얼 원 */
+        .title-glow {
+            position: absolute;
+            top: 10%;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(56, 189, 248, 0.15) 0%, rgba(192, 132, 252, 0.05) 50%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: pulse 4s infinite alternate ease-in-out;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.9); opacity: 0.6; }
+            100% { transform: scale(1.15); opacity: 1; }
+        }
+
+        h1 {
+            font-size: 48px;
+            margin: 0 0 6px 0;
+            background: linear-gradient(135deg, #22c55e 0%, #38bdf8 50%, #c084fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 25px rgba(34, 197, 94, 0.4);
+            letter-spacing: 1px;
+            z-index: 1;
+        }
+
+        .subtitle {
+            color: #94a3b8;
+            font-size: 14px;
+            margin-bottom: 20px;
+            z-index: 1;
+        }
+
+        .setup-row {
+            width: 100%;
+            max-width: 400px;
+            margin-bottom: 12px;
+            z-index: 1;
+        }
+
+        select, input[type="text"] {
+            padding: 10px 14px;
+            font-size: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            background: rgba(30, 41, 59, 0.8);
+            color: #fff;
+            text-align: center;
+            outline: none;
+            width: 100%;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        select:focus, input[type="text"]:focus {
+            border-color: #38bdf8;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+        }
+
+        .char-selection-container {
+            display: flex;
+            gap: 12px;
+            width: 100%;
+            max-width: 420px;
+            margin-bottom: 16px;
+            z-index: 1;
+        }
+
+        .char-box {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: rgba(15, 23, 42, 0.85);
+            padding: 12px;
+            border-radius: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .char-picker {
+            display: flex;
+            gap: 6px;
+            margin: 8px 0;
+        }
+
+        .char-btn {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            background: rgba(30, 41, 59, 0.8);
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .char-btn.selected {
+            border-color: #22c55e;
+            background: #1e293b;
+            box-shadow: 0 0 12px rgba(34, 197, 94, 0.5);
+            transform: scale(1.08);
+        }
+
+        .char-desc {
+            font-size: 12px;
+            color: #fde047;
+            height: 32px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 8px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 8px;
+            z-index: 1;
+        }
+
+        button {
+            padding: 12px 36px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #fff;
+            background: linear-gradient(135deg, #16a34a 0%, #0284c7 100%);
+            border: none;
+            border-radius: 14px;
+            cursor: pointer;
+            font-family: inherit;
+            box-shadow: 0 0 20px rgba(22, 163, 74, 0.4);
+            transition: all 0.2s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 0 30px rgba(56, 189, 248, 0.6);
+        }
+
+        button.sub-btn {
+            background: rgba(51, 65, 85, 0.8);
+            box-shadow: none;
+        }
+
+        .leaderboard-container {
+            width: 100%;
+            max-width: 400px;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+            z-index: 1;
+        }
+
+        .leaderboard-title {
+            text-align: center;
+            font-size: 16px;
+            color: #fde047;
+            margin-bottom: 8px;
+        }
+
+        .leaderboard-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 10px;
+            font-size: 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .rank-1 { color: #fde047; font-weight: bold; }
+        .rank-2 { color: #e2e8f0; font-weight: bold; }
+        .rank-3 { color: #f97316; font-weight: bold; }
+
+        #result-text {
+            font-size: 26px;
+            color: #38bdf8;
+            margin-bottom: 16px;
+            text-align: center;
+            font-weight: bold;
+            z-index: 1;
+        }
+
+        .controls-info {
+            position: absolute;
+            bottom: 12px;
+            font-size: 12px;
+            color: #64748b;
+            text-align: center;
+            z-index: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="gameCanvas" width="600" height="720"></canvas>
+
+        <div id="start-screen" class="overlay">
+            <div class="title-glow"></div>
+            <h1>🎋 못피하면 죽순!</h1>
+            <div class="subtitle">하이퍼 익스트림 & 밟기 대결</div>
+
+            <div class="setup-row">
+                <select id="mode-select" onchange="toggleModeUI()">
+                    <option value="1p" selected>1인용 (싱글 랭킹 도전)</option>
+                    <option value="2p">2인용 (실시간 방해 & 우승 대결)</option>
+                </select>
+            </div>
+
+            <div class="char-selection-container">
+                <div class="char-box">
+                    <span style="color:#38bdf8; font-weight:bold;">1P</span>
+                    <div class="char-picker">
+                        <div class="char-btn p1-btn selected" onclick="selectChar(1, 'cat', this)">🐱</div>
+                        <div class="char-btn p1-btn" onclick="selectChar(1, 'dog', this)">🐶</div>
+                        <div class="char-btn p1-btn" onclick="selectChar(1, 'pig', this)">🐷</div>
+                        <div class="char-btn p1-btn" onclick="selectChar(1, 'chick', this)">🐥</div>
+                    </div>
+                    <div class="char-desc" id="p1-desc">🐱 <b>고양이</b>: 2단 점프 가능</div>
+                    <input type="text" id="p1-name-input" maxlength="8" placeholder="이름 입력">
+                </div>
+
+                <div class="char-box" id="p2-char-box" style="display: none;">
+                    <span style="color:#f43f5e; font-weight:bold;">2P</span>
+                    <div class="char-picker">
+                        <div class="char-btn p2-btn" onclick="selectChar(2, 'cat', this)">🐱</div>
+                        <div class="char-btn p2-btn selected" onclick="selectChar(2, 'dog', this)">🐶</div>
+                        <div class="char-btn p2-btn" onclick="selectChar(2, 'pig', this)">🐷</div>
+                        <div class="char-btn p2-btn" onclick="selectChar(2, 'chick', this)">🐥</div>
+                    </div>
+                    <div class="char-desc" id="p2-desc">🐶 <b>강아지</b>: 속도 & 대시 강화</div>
+                    <input type="text" id="p2-name-input" maxlength="8" placeholder="2P 이름 입력">
+                </div>
+            </div>
+
+            <div class="leaderboard-container" id="main-leaderboard">
+                <div class="leaderboard-title">🏆 싱글 랭킹 순위표</div>
+                <ul class="leaderboard-list" id="rank-list"></ul>
+            </div>
+            
+            <div class="btn-group">
+                <button onclick="startGame()">게임 시작</button>
+            </div>
+
+            <div class="controls-info">
+                1P: A/D(이동) W(점프) Shift(대시) | 2P: ←/→(이동) ↑(점프) Shift(대시)
+            </div>
+        </div>
+
+        <div id="gameover-screen" class="overlay" style="display: none;">
+            <div class="title-glow"></div>
+            <h1 id="gameover-title" style="background: linear-gradient(135deg, #ef4444, #f97316); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">GAME OVER</h1>
+            <div id="result-text"></div>
+
+            <div class="leaderboard-container" id="gameover-leaderboard">
+                <div class="leaderboard-title">🏆 싱글 랭킹 순위표</div>
+                <ul class="leaderboard-list" id="gameover-rank-list"></ul>
+            </div>
+
+            <div class="btn-group">
+                <button onclick="restartGame()">다시 도전</button>
+                <button class="sub-btn" onclick="goToMainMenu()">메인 메뉴</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+const startScreen = document.getElementById('start-screen');
+const gameoverScreen = document.getElementById('gameover-screen');
+const modeSelect = document.getElementById('mode-select');
+
+let isGameOver = false;
+let isPlaying = false;
+let frameCount = 0;
+let gameMode = '1p';
+
+let p1CharKey = 'cat';
+let p2CharKey = 'dog';
+
+let p1Name = '플레이어1';
+let p2Name = '플레이어2';
+
+let score1P = 0;
+let score2P = 0;
+let slowMotionTimer = 0;
+
+const charInfo = {
+    cat: { emoji: '🐱', name: '고양이', desc: '🐱 <b>고양이</b>: 2단 점프 가능', speed: 6.5, jump: 13.5, size: 28, color: '#38bdf8', maxJumps: 2 },
+    dog: { emoji: '🐶', name: '강아지', desc: '🐶 <b>강아지</b>: 이동/대시 속도 증가', speed: 8.0, jump: 13.0, size: 28, color: '#f43f5e', maxJumps: 1 },
+    pig: { emoji: '🐷', name: '돼지', desc: '🐷 <b>돼지</b>: 시작 시 보호막 1회 생성', speed: 6.0, jump: 12.0, size: 32, color: '#fb7185', maxJumps: 1, startShield: true },
+    chick: { emoji: '🐥', name: '병아리', desc: '🐥 <b>병아리</b>: 피격 판정 작음 & 대시 쿨타임 감소', speed: 7.0, jump: 13.0, size: 22, color: '#facc15', maxJumps: 1, dashCool: 40 }
+};
+
+const groundY = 650;
+const gravity = 0.65;
+
+let players = [];
+let bambooList = [];
+let itemList = [];
+let particleList = [];
+let bgParticles = [];
+let dashTrails = [];
+const keys = {};
+
+// 메인 배경 빛 입자
+for (let i = 0; i < 40; i++) {
+    bgParticles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        size: Math.random() * 2.5 + 1,
+        speed: Math.random() * 0.8 + 0.2,
+        alpha: Math.random() * 0.5 + 0.2
+    });
+}
+
+function getRankings() {
+    const saved = localStorage.getItem('bamboo_dodge_ranks');
+    return saved ? JSON.parse(saved) : [];
+}
+
+function renderRankItems(targetId) {
+    const ranks = getRankings();
+    const listEl = document.getElementById(targetId);
+    if (!listEl) return;
+    listEl.innerHTML = '';
+
+    if (ranks.length === 0) {
+        listEl.innerHTML = '<li class="leaderboard-item" style="justify-content:center; color:#94a3b8;">기록 없음</li>';
+        return;
+    }
+
+    ranks.slice(0, 5).forEach((item, index) => {
+        const li = document.createElement('li');
+        li.className = 'leaderboard-item';
+        
+        let rankClass = '';
+        if (index === 0) rankClass = 'class="rank-1"';
+        else if (index === 1) rankClass = 'class="rank-2"';
+        else if (index === 2) rankClass = 'class="rank-3"';
+
+        li.innerHTML = `<span ${rankClass}>${index + 1}등 : ${item.name}</span><span>${item.score}점</span>`;
+        listEl.appendChild(li);
+    });
+}
+
+function updateRankUI() {
+    renderRankItems('rank-list');
+    renderRankItems('gameover-rank-list');
+}
+
+function saveScore(playerName, score) {
+    let ranks = getRankings();
+    ranks.push({ name: playerName, score: score });
+    ranks.sort((a, b) => b.score - a.score);
+    ranks = ranks.slice(0, 10);
+    localStorage.setItem('bamboo_dodge_ranks', JSON.stringify(ranks));
+    
+    const myRank = ranks.findIndex(item => item.name === playerName && item.score === score) + 1;
+    updateRankUI();
+    return myRank;
+}
+
+function toggleModeUI() {
+    gameMode = modeSelect.value;
+    const p2Box = document.getElementById('p2-char-box');
+    const mainRank = document.getElementById('main-leaderboard');
+    
+    if (gameMode === '1p') {
+        p2Box.style.display = "none";
+        mainRank.style.display = "block";
+        updateRankUI();
+    } else {
+        p2Box.style.display = "flex";
+        mainRank.style.display = "none";
+    }
+}
+
+function createPlayer(x, charKey, id, name) {
+    const char = charInfo[charKey];
+    return {
+        id: id,
+        name: name,
+        x: x,
+        y: groundY - char.size,
+        vx: 0,
+        vy: 0,
+        width: char.size,
+        height: char.size,
+        speed: char.speed,
+        jumpPower: char.jump,
+        jumpsLeft: char.maxJumps,
+        maxJumps: char.maxJumps,
+        isGrounded: true,
+        isAlive: true,
+        charKey: charKey,
+        color: char.color,
+        hasShield: char.startShield || false,
+        dashCooldown: 0,
+        maxDashCooldown: char.dashCool || 60,
+        dashRemaining: 0,
+        dashDir: 0
+    };
+}
+
+window.addEventListener('keydown', e => {
+    keys[e.code] = true;
+    if (!isPlaying || isGameOver) return;
+
+    if (e.code === 'KeyW' && players[0] && players[0].isAlive) {
+        if (players[0].jumpsLeft > 0) {
+            players[0].vy = -players[0].jumpPower;
+            players[0].jumpsLeft--;
+            players[0].isGrounded = false;
+            createParticles(players[0].x + players[0].width/2, players[0].y + players[0].height, '#38bdf8', 6);
+        }
+    }
+    if (e.code === 'ShiftLeft' && players[0] && players[0].isAlive && players[0].dashCooldown === 0) {
+        triggerDash(players[0]);
+    }
+
+    if (gameMode === '2p' && players[1] && players[1].isAlive) {
+        if (e.code === 'ArrowUp') {
+            if (players[1].jumpsLeft > 0) {
+                players[1].vy = -players[1].jumpPower;
+                players[1].jumpsLeft--;
+                players[1].isGrounded = false;
+                createParticles(players[1].x + players[1].width/2, players[1].y + players[1].height, '#f43f5e', 6);
+            }
+        }
+        if (e.code === 'ShiftRight' && players[1].dashCooldown === 0) {
+            triggerDash(players[1]);
+        }
+    }
+});
+
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+function triggerDash(p) {
+    let dir = 0;
+    if (p.id === 1) {
+        if (keys['KeyA']) dir = -1;
+        if (keys['KeyD']) dir = 1;
+    } else {
+        if (keys['ArrowLeft']) dir = -1;
+        if (keys['ArrowRight']) dir = 1;
+    }
+    if (dir === 0) dir = 1;
+
+    p.dashDir = dir;
+    p.dashRemaining = 120;
+    p.dashCooldown = p.maxDashCooldown;
+}
+
+function selectChar(playerNum, charKey, el) {
+    if (playerNum === 1) {
+        p1CharKey = charKey;
+        document.querySelectorAll('.p1-btn').forEach(btn => btn.classList.remove('selected'));
+        document.getElementById('p1-desc').innerHTML = charInfo[charKey].desc;
+    } else {
+        p2CharKey = charKey;
+        document.querySelectorAll('.p2-btn').forEach(btn => btn.classList.remove('selected'));
+        document.getElementById('p2-desc').innerHTML = charInfo[charKey].desc;
+    }
+    el.classList.add('selected');
+}
+
+function startGame() {
+    gameMode = modeSelect.value;
+    const inputP1 = document.getElementById('p1-name-input').value.trim();
+    const inputP2 = document.getElementById('p2-name-input').value.trim();
+    p1Name = inputP1 ? inputP1 : '플레이어1';
+    p2Name = inputP2 ? inputP2 : '플레이어2';
+
+    startScreen.style.display = 'none';
+    gameoverScreen.style.display = 'none';
+    
+    score1P = 0;
+    score2P = 0;
+    slowMotionTimer = 0;
+    resetData();
+    isPlaying = true;
+    gameLoop();
+}
+
+function resetData() {
+    isGameOver = false;
+    frameCount = 0;
+    bambooList = [];
+    itemList = [];
+    particleList = [];
+    dashTrails = [];
+    players = [];
+
+    if (gameMode === '1p') {
+        players.push(createPlayer(280, p1CharKey, 1, p1Name));
+    } else {
+        players.push(createPlayer(150, p1CharKey, 1, p1Name));
+        players.push(createPlayer(410, p2CharKey, 2, p2Name));
+    }
+}
+
+function restartGame() {
+    gameoverScreen.style.display = 'none';
+    resetData();
+    isPlaying = true;
+    gameLoop();
+}
+
+function goToMainMenu() {
+    isPlaying = false;
+    isGameOver = false;
+    gameoverScreen.style.display = 'none';
+    startScreen.style.display = 'flex';
+    updateRankUI();
+    render();
+}
+
+function spawnBamboo() {
+    const rate = Math.max(5, 22 - Math.floor(frameCount / 180));
+    if (frameCount % rate === 0) {
+        let width = 22 + Math.random() * 8;
+        bambooList.push({
+            x: Math.random() * (canvas.width - width),
+            y: -70,
+            width: width,
+            height: 55 + Math.random() * 15,
+            speed: 5.0 + Math.random() * 3.5 + (frameCount / 400)
+        });
+    }
+}
+
+function spawnItems() {
+    if (frameCount % 300 === 0 && Math.random() < 0.7) {
+        const types = ['shield', 'slow', 'clear'];
+        const type = types[Math.floor(Math.random() * types.length)];
+        itemList.push({
+            x: 30 + Math.random() * (canvas.width - 60),
+            y: -30,
+            size: 24,
+            type: type,
+            speed: 2.5
+        });
+    }
+}
+
+function handlePlayerInteraction() {
+    if (gameMode !== '2p' || !players[0] || !players[1]) return;
+    const p1 = players[0];
+    const p2 = players[1];
+
+    if (!p1.isAlive || !p2.isAlive) return;
+
+    if (p1.x < p2.x + p2.width &&
+        p1.x + p1.width > p2.x &&
+        p1.y < p2.y + p2.height &&
+        p1.y + p1.height > p2.y) {
+
+        if (p1.vy > 0 && p1.y + p1.height - p1.vy <= p2.y + 10) {
+            p1.y = p2.y - p1.height;
+            p1.vy = -p1.jumpPower * 0.85;
+            p1.jumpsLeft = p1.maxJumps - 1;
+            p2.vy += 4;
+            createParticles(p1.x + p1.width/2, p2.y, '#fde047', 10);
+        } 
+        else if (p2.vy > 0 && p2.y + p2.height - p2.vy <= p1.y + 10) {
+            p2.y = p1.y - p2.height;
+            p2.vy = -p2.jumpPower * 0.85;
+            p2.jumpsLeft = p2.maxJumps - 1;
+            p1.vy += 4;
+            createParticles(p2.x + p2.width/2, p1.y, '#fde047', 10);
+        } 
+        else {
+            const overlapX = (p1.x + p1.width / 2) - (p2.x + p2.width / 2);
+            if (overlapX > 0) {
+                p1.x += 4;
+                p2.x -= 4;
+            } else {
+                p1.x -= 4;
+                p2.x += 4;
+            }
+            createParticles((p1.x + p2.x)/2, (p1.y + p2.y)/2, '#38bdf8', 4);
+        }
+    }
+}
+
+function updatePhysics(p) {
+    if (!p.isAlive) return;
+
+    if (p.dashCooldown > 0) p.dashCooldown--;
+
+    if (p.dashRemaining > 0) {
+        p.x += p.dashDir * 18;
+        p.dashRemaining -= 18;
+        dashTrails.push({
+            x: p.x,
+            y: p.y,
+            emoji: charInfo[p.charKey].emoji,
+            size: p.width,
+            alpha: 0.6
+        });
+    } else {
+        if (p.id === 1) {
+            if (keys['KeyA']) p.vx = -p.speed;
+            else if (keys['KeyD']) p.vx = p.speed;
+            else p.vx *= 0.65;
+        } else {
+            if (keys['ArrowLeft']) p.vx = -p.speed;
+            else if (keys['ArrowRight']) p.vx = p.speed;
+            else p.vx *= 0.65;
+        }
+        p.x += p.vx;
+    }
+
+    p.vy += gravity;
+    p.y += p.vy;
+
+    if (p.x < 0) p.x = 0;
+    if (p.x > canvas.width - p.width) p.x = canvas.width - p.width;
+
+    if (p.y >= groundY - p.height) {
+        p.y = groundY - p.height;
+        p.vy = 0;
+        p.isGrounded = true;
+        p.jumpsLeft = p.maxJumps;
+    }
+}
+
+function createParticles(x, y, color, count) {
+    for (let i = 0; i < count; i++) {
+        particleList.push({
+            x: x, y: y,
+            vx: (Math.random() - 0.5) * 6,
+            vy: (Math.random() - 0.5) * 6,
+            color: color,
+            alpha: 1,
+            size: Math.random() * 4 + 2
+        });
+    }
+}
+
+function update() {
+    if (isGameOver || !isPlaying) return;
+    frameCount++;
+
+    if (slowMotionTimer > 0) slowMotionTimer--;
+
+    bgParticles.forEach(bp => {
+        bp.y -= bp.speed;
+        if (bp.y < 0) {
+            bp.y = canvas.height;
+            bp.x = Math.random() * canvas.width;
+        }
+    });
+
+    players.forEach(p => updatePhysics(p));
+    handlePlayerInteraction();
+
+    if (players[0] && players[0].isAlive) score1P++;
+    if (players[1] && players[1].isAlive) score2P++;
+
+    spawnBamboo();
+    spawnItems();
+
+    for (let i = itemList.length - 1; i >= 0; i--) {
+        let it = itemList[i];
+        it.y += it.speed;
+
+        players.forEach(p => {
+            if (p.isAlive &&
+                p.x < it.x + it.size &&
+                p.x + p.width > it.x &&
+                p.y < it.y + it.size &&
+                p.y + p.height > it.y
+            ) {
+                if (it.type === 'shield') {
+                    p.hasShield = true;
+                    createParticles(p.x, p.y, '#38bdf8', 12);
+                } else if (it.type === 'slow') {
+                    slowMotionTimer = 180;
+                    createParticles(p.x, p.y, '#fde047', 12);
+                } else if (it.type === 'clear') {
+                    bambooList = [];
+                    createParticles(300, 300, '#a855f7', 30);
+                }
+                itemList.splice(i, 1);
+            }
+        });
+
+        if (it.y > groundY) itemList.splice(i, 1);
+    }
+
+    const currentSpeedMult = slowMotionTimer > 0 ? 0.4 : 1.0;
+    for (let i = bambooList.length - 1; i >= 0; i--) {
+        let b = bambooList[i];
+        b.y += b.speed * currentSpeedMult;
+
+        players.forEach(p => {
+            if (p.isAlive &&
+                p.x < b.x + b.width &&
+                p.x + p.width > b.x &&
+                p.y < b.y + b.height &&
+                p.y + p.height > b.y
+            ) {
+                if (p.hasShield) {
+                    p.hasShield = false;
+                    bambooList.splice(i, 1);
+                    createParticles(p.x + p.width/2, p.y, '#38bdf8', 15);
+                } else {
+                    p.isAlive = false;
+                    createParticles(p.x + p.width/2, p.y + p.height/2, '#ef4444', 25);
+                    
+                    isGameOver = true;
+                    setTimeout(() => {
+                        const resultEl = document.getElementById('result-text');
+                        const gameoverTitle = document.getElementById('gameover-title');
+                        const leaderboardContainer = document.getElementById('gameover-leaderboard');
+
+                        if (gameMode === '1p') {
+                            gameoverTitle.innerText = "GAME OVER";
+                            leaderboardContainer.style.display = "block";
+                            const finalScore = Math.floor(score1P / 10);
+                            const rank = saveScore(p1Name, finalScore);
+                            resultEl.innerText = `🏆 ${rank}등 기록! (${p1Name} : ${finalScore}점)`;
+                        } else {
+                            leaderboardContainer.style.display = "none"; // 2인용은 기록 미표시
+                            
+                            const winner = players.find(pl => pl.isAlive);
+                            if (winner) {
+                                gameoverTitle.innerText = "VICTORY!";
+                                resultEl.innerText = `🎉 ${winner.name} 우승!`;
+                            } else {
+                                gameoverTitle.innerText = "DRAW";
+                                resultEl.innerText = "무승부!";
+                            }
+                        }
+                        gameoverScreen.style.display = 'flex';
+                    }, 300);
+                }
+            }
+        });
+
+        if (b.y > groundY) bambooList.splice(i, 1);
+    }
+
+    for (let i = dashTrails.length - 1; i >= 0; i--) {
+        dashTrails[i].alpha -= 0.08;
+        if (dashTrails[i].alpha <= 0) dashTrails.splice(i, 1);
+    }
+
+    for (let i = particleList.length - 1; i >= 0; i--) {
+        let pt = particleList[i];
+        pt.x += pt.vx;
+        pt.y += pt.vy;
+        pt.alpha -= 0.04;
+        if (pt.alpha <= 0) particleList.splice(i, 1);
+    }
+}
+
+function drawMap() {
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.05)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < canvas.width; x += 40) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, groundY);
+        ctx.stroke();
+    }
+    for (let y = 0; y < groundY; y += 40) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+    }
+
+    bgParticles.forEach(bp => {
+        ctx.save();
+        ctx.globalAlpha = bp.alpha;
+        ctx.fillStyle = '#38bdf8';
+        ctx.beginPath();
+        ctx.arc(bp.x, bp.y, bp.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    });
+
+    ctx.save();
+    let groundGrad = ctx.createLinearGradient(0, groundY, 0, canvas.height);
+    groundGrad.addColorStop(0, '#0f172a');
+    groundGrad.addColorStop(1, '#020617');
+    ctx.fillStyle = groundGrad;
+    ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+
+    ctx.shadowColor = '#38bdf8';
+    ctx.shadowBlur = 12;
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, groundY);
+    ctx.lineTo(canvas.width, groundY);
+    ctx.stroke();
+    ctx.restore();
+}
+
+function drawBamboo(b) {
+    ctx.save();
+    ctx.shadowColor = '#22c55e';
+    ctx.shadowBlur = 10;
+
+    let grad = ctx.createLinearGradient(b.x, b.y, b.x + b.width, b.y);
+    grad.addColorStop(0, '#4ade80');
+    grad.addColorStop(0.5, '#16a34a');
+    grad.addColorStop(1, '#14532d');
+
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.roundRect(b.x, b.y, b.width, b.height, 4);
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#bbf7d0';
+    ctx.fillRect(b.x + 1, b.y + b.height * 0.3, b.width - 2, 3);
+    ctx.fillRect(b.x + 1, b.y + b.height * 0.7, b.width - 2, 3);
+
+    ctx.restore();
+}
+
+function render() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    drawMap();
+
+    dashTrails.forEach(t => {
+        ctx.save();
+        ctx.globalAlpha = t.alpha;
+        ctx.font = `${t.size}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText(t.emoji, t.x + t.size/2, t.y + t.size);
+        ctx.restore();
+    });
+
+    bambooList.forEach(b => drawBamboo(b));
+
+    itemList.forEach(it => {
+        ctx.save();
+        ctx.font = '20px sans-serif';
+        let icon = '🛡️';
+        if (it.type === 'slow') icon = '⏱️';
+        if (it.type === 'clear') icon = '💥';
+        ctx.fillText(icon, it.x, it.y);
+        ctx.restore();
+    });
+
+    particleList.forEach(pt => {
+        ctx.save();
+        ctx.globalAlpha = pt.alpha;
+        ctx.fillStyle = pt.color;
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    });
+
+    players.forEach(p => {
+        if (!p.isAlive) return;
+
+        ctx.save();
+        if (p.hasShield) {
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(p.x + p.width/2, p.y + p.height/2, p.width, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        ctx.font = `${p.width}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(charInfo[p.charKey].emoji, p.x + p.width / 2, p.y + p.height);
+
+        ctx.fillStyle = p.color;
+        ctx.font = 'bold 12px Jua, sans-serif';
+        ctx.fillText(p.name, p.x + p.width / 2, p.y - 6);
+
+        if (p.dashCooldown > 0) {
+            ctx.fillStyle = 'rgba(255,255,255,0.3)';
+            ctx.fillRect(p.x, p.y - 4, p.width, 3);
+            ctx.fillStyle = p.color;
+            ctx.fillRect(p.x, p.y - 4, p.width * (1 - p.dashCooldown / p.maxDashCooldown), 3);
+        }
+
+        ctx.restore();
+    });
+
+    if (isPlaying) {
+        ctx.save();
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 20px Jua, sans-serif';
+        if (gameMode === '1p') {
+            ctx.fillText(`${p1Name} : ${Math.floor(score1P / 10)}점`, 20, 35);
+        } else {
+            ctx.fillText(`${p1Name} : ${Math.floor(score1P / 10)}점`, 20, 35);
+            ctx.textAlign = 'right';
+            ctx.fillText(`${p2Name} : ${Math.floor(score2P / 10)}점`, 580, 35);
+        }
+
+        if (slowMotionTimer > 0) {
+            ctx.fillStyle = '#fde047';
+            ctx.textAlign = 'center';
+            ctx.fillText(`⏱️ 슬로우 모션!`, 300, 35);
+        }
+        ctx.restore();
+    }
+}
+
+function gameLoop() {
+    if (!isPlaying) return;
+    update();
+    render();
+    if (!isGameOver) requestAnimationFrame(gameLoop);
+}
+
+toggleModeUI();
+updateRankUI();
+</script>
+
+</body>
+</html>

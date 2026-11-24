@@ -1,0 +1,1451 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>두더지를 잡아라!</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Jua&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            font-family: 'Jua', 'Fredoka', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            background: radial-gradient(circle at center, #7cb342 0%, #33691e 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+            cursor: default;
+        }
+
+        /* Hole Frame Container */
+        .hole-frame {
+            position: relative;
+            aspect-ratio: 1 / 1;
+            width: 100%;
+        }
+
+        /* Hole Mask with Strict Overflow Clipping */
+        .hole {
+            position: absolute;
+            inset: 0;
+            overflow: hidden !important;
+            border-radius: 50%;
+            background: radial-gradient(circle, #2d1b0e 20%, #150c06 85%);
+            border: 6px solid #4a2c11;
+            box-shadow: inset 0 14px 25px rgba(0,0,0,0.9), 0 8px 15px rgba(0,0,0,0.4);
+        }
+
+        /* Dirt Mound / Grass Overlay on bottom edge of hole */
+        .hole::after {
+            content: '';
+            position: absolute;
+            bottom: -8%;
+            left: -10%;
+            right: -10%;
+            height: 48%;
+            background: linear-gradient(180deg, #5d3a1a 0%, #3e240f 65%, #231307 100%);
+            border-top: 4px solid #8d5524;
+            border-radius: 50% 50% 30% 30%;
+            z-index: 25;
+            pointer-events: none;
+            box-shadow: 0 -4px 8px rgba(0,0,0,0.6);
+        }
+
+        /* Mole Container & Complete Underground Hide */
+        .mole {
+            position: absolute;
+            left: 50%;
+            bottom: 0;
+            transform: translateX(-50%) translateY(220%);
+            width: 82%;
+            height: 85%;
+            transition: transform 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.28), opacity 0.15s ease-out;
+            z-index: 10;
+            cursor: pointer;
+            filter: drop-shadow(0 6px 8px rgba(0,0,0,0.4));
+            will-change: transform, opacity;
+            pointer-events: none;
+            opacity: 0;
+        }
+
+        /* High Pop-up State */
+        .mole.up {
+            transform: translateX(-50%) translateY(-10%);
+            pointer-events: auto;
+            opacity: 1;
+        }
+
+        /* Whack Squeaky Hammer Bonk & Squish Animation */
+        @keyframes hammerSwing {
+            0% {
+                transform: translate(-10%, -120%) rotate(-80deg) scale(0.6);
+                opacity: 0;
+            }
+            30% {
+                transform: translate(-25%, -70%) rotate(25deg) scale(1.3);
+                opacity: 1;
+            }
+            50% {
+                transform: translate(-30%, -45%) rotate(0deg) scale(1.15);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(-45%, -25%) rotate(-25deg) scale(0.7);
+                opacity: 0;
+            }
+        }
+
+        .hammer-overlay {
+            position: absolute;
+            top: -25%;
+            left: 20%;
+            width: 110px;
+            height: 110px;
+            pointer-events: none;
+            z-index: 50;
+            animation: hammerSwing 0.38s cubic-bezier(0.175, 0.885, 0.32, 1.28) forwards;
+            transform-origin: bottom right;
+            filter: drop-shadow(3px 8px 12px rgba(0, 0, 0, 0.6));
+        }
+
+        @keyframes hitPowPop {
+            0% { transform: translate(-50%, -60%) scale(0.2) rotate(-15deg); opacity: 0; }
+            40% { transform: translate(-50%, -90%) scale(1.4) rotate(10deg); opacity: 1; }
+            80% { transform: translate(-50%, -110%) scale(1.1) rotate(0deg); opacity: 1; }
+            100% { transform: translate(-50%, -130%) scale(0.8) rotate(5deg); opacity: 0; }
+        }
+
+        .hit-pow-effect {
+            position: absolute;
+            top: 15%;
+            left: 50%;
+            pointer-events: none;
+            z-index: 55;
+            font-size: 2.2rem;
+            font-weight: 900;
+            color: #fef08a;
+            animation: hitPowPop 0.5s ease-out forwards;
+            text-shadow: 0 0 12px #f59e0b, 2px 2px 0 #000, -2px -2px 0 #000;
+        }
+
+        @keyframes moleSquashWobble {
+            0% {
+                transform: translateX(-50%) translateY(-10%) scale(1.35, 0.5) rotate(18deg);
+            }
+            35% {
+                transform: translateX(-50%) translateY(10%) scale(0.75, 1.25) rotate(-15deg);
+            }
+            100% {
+                transform: translateX(-50%) translateY(120%) scale(0.7) rotate(0deg);
+            }
+        }
+
+        .mole.whacked {
+            animation: moleSquashWobble 0.35s ease-out forwards !important;
+            filter: brightness(1.2) contrast(1.1);
+        }
+
+        .mole-golden-glow {
+            filter: drop-shadow(0 0 12px #ffe082) drop-shadow(0 0 22px #ffb300);
+        }
+
+        /* Hide glow and filter completely when mole is underground */
+        .mole:not(.up) .mole-golden-glow {
+            filter: none !important;
+        }
+
+        /* Floating Score Text Overlay */
+        @keyframes floatUpAndFade {
+            0% {
+                opacity: 1;
+                transform: translate(-50%, 0) scale(0.8);
+            }
+            40% {
+                opacity: 1;
+                transform: translate(-50%, -40px) scale(1.3);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -70px) scale(1);
+            }
+        }
+
+        .floating-score {
+            position: absolute;
+            pointer-events: none;
+            animation: floatUpAndFade 0.85s ease-out forwards;
+            font-size: 1.8rem;
+            font-weight: 900;
+            z-index: 40;
+            text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000;
+        }
+
+        /* Modal Overlay Backdrop */
+        .modal-backdrop {
+            background-color: rgba(15, 23, 42, 0.82);
+            backdrop-filter: blur(8px);
+        }
+
+        @keyframes screenShake {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            20% { transform: translate(-8px, 5px) rotate(-1.5deg); }
+            40% { transform: translate(8px, -5px) rotate(1.5deg); }
+            60% { transform: translate(-6px, -3px) rotate(-0.8deg); }
+            80% { transform: translate(6px, 3px) rotate(0.8deg); }
+        }
+
+        .shake-effect {
+            animation: screenShake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        @keyframes explodePop {
+            0% {
+                transform: translate(-50%, -50%) scale(0.2) rotate(0deg);
+                opacity: 1;
+            }
+            45% {
+                transform: translate(-50%, -50%) scale(1.6) rotate(12deg);
+                opacity: 0.95;
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(2.3) rotate(-12deg);
+                opacity: 0;
+            }
+        }
+
+        .explosion-particle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 50;
+            width: 150%;
+            height: 150%;
+            animation: explodePop 0.5s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+        }
+
+        @keyframes goldenBurstPop {
+            0% {
+                transform: translate(-50%, -50%) scale(0.3) rotate(0deg);
+                opacity: 1;
+                filter: drop-shadow(0 0 8px #fff) drop-shadow(0 0 18px #ffd700);
+            }
+            50% {
+                transform: translate(-50%, -60%) scale(1.5) rotate(15deg);
+                opacity: 1;
+                filter: drop-shadow(0 0 20px #fff) drop-shadow(0 0 35px #ffb300);
+            }
+            100% {
+                transform: translate(-50%, -85%) scale(2) rotate(-15deg);
+                opacity: 0;
+                filter: drop-shadow(0 0 25px #ffd700);
+            }
+        }
+
+        .golden-sparkle-particle {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 50;
+            width: 160%;
+            height: 160%;
+            animation: goldenBurstPop 0.6s cubic-bezier(0.15, 0.85, 0.35, 1.2) forwards;
+        }
+
+        @keyframes goldenGlowPulse {
+            0% { box-shadow: 0 0 0px rgba(255, 215, 0, 0.8); }
+            50% { box-shadow: 0 0 35px rgba(255, 215, 0, 0.9), inset 0 0 20px rgba(255, 235, 59, 0.8); }
+            100% { box-shadow: 0 0 0px rgba(255, 215, 0, 0); }
+        }
+
+        .golden-glow-effect {
+            animation: goldenGlowPulse 0.5s ease-out;
+            border-radius: 50%;
+        }
+
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #d97706;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-between min-h-screen p-3 sm:p-6 text-slate-800">
+
+    <header class="text-center mb-2">
+        <h1 class="text-4xl sm:text-6xl font-black text-amber-300 drop-shadow-[0_5px_5px_rgba(0,0,0,0.6)] tracking-wider flex items-center justify-center gap-2">
+            <span>🔨</span> 두더지를 잡아라! <span>🐾</span>
+        </h1>
+        <p class="text-amber-100 text-sm sm:text-base drop-shadow mt-1">두더지를 잡고 전세계 온라인 명예의 전당 Top 10에 도전하세요!</p>
+    </header>
+
+    <!-- Start / Nickname Modal -->
+    <div id="nicknameModal" class="fixed inset-0 modal-backdrop flex items-center justify-center p-4 z-50 overflow-y-auto">
+        <div class="bg-amber-50 border-4 border-amber-800 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl text-center my-auto transform transition-all">
+            <div class="text-5xl mb-2">🐹👑</div>
+            <h2 class="text-3xl sm:text-4xl font-black text-amber-900 mb-1">두더지를 잡아라!</h2>
+            <p class="text-amber-700 text-xs sm:text-sm mb-5">닉네임을 입력하고 흥미진진한 두더지 잡기를 시작하세요!</p>
+
+            <form id="nicknameForm" class="space-y-4">
+                <div class="text-left">
+                    <label for="nicknameInput" class="block text-xs font-bold text-amber-900 mb-1 pl-1">플레이어 닉네임</label>
+                    <input type="text" id="nicknameInput" maxlength="10" placeholder="닉네임 (최대 10자)" required
+                           class="w-full px-4 py-3 bg-white border-2 border-amber-400 rounded-xl text-amber-900 font-bold focus:outline-none focus:ring-4 focus:ring-amber-300 transition text-lg text-center shadow-inner">
+                </div>
+
+                <div class="text-left">
+                    <label for="difficultyStartSelect" class="block text-xs font-bold text-amber-900 mb-1 pl-1">난이도 선택</label>
+                    <select id="difficultyStartSelect" class="w-full px-4 py-3 bg-amber-100 border-2 border-amber-400 rounded-xl text-amber-900 font-bold focus:outline-none focus:ring-2 focus:ring-amber-300 text-base cursor-pointer">
+                        <option value="easy">쉬움 (3x3 - 여유로움)</option>
+                        <option value="medium" selected>보통 (3x3 - 표준 속도)</option>
+                        <option value="hard">어려움 (4x4 - 광속 도전)</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 active:translate-y-1 text-white font-black py-3.5 px-6 rounded-xl shadow-[0_5px_0_#047857] transition-all text-xl flex items-center justify-center gap-2 mt-2 cursor-pointer">
+                    <i class="fa-solid fa-play"></i> 게임 시작
+                </button>
+            </form>
+
+            <!-- Leaderboard Mini Preview -->
+            <div class="mt-6 border-t border-amber-200 pt-4 text-left">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="text-sm font-bold text-amber-900 flex items-center gap-1">
+                        <i class="fa-solid fa-trophy text-yellow-500"></i> 실시간 온라인 명예의 전당
+                    </h3>
+                    <button type="button" id="viewLeaderboardBtn" class="text-xs bg-amber-200 hover:bg-amber-300 text-amber-900 font-bold px-2.5 py-1 rounded-lg border border-amber-400 cursor-pointer">
+                        전체 순위 보기 <i class="fa-solid fa-list-ol"></i>
+                    </button>
+                </div>
+                <!-- Difficulty Tabs for Start Modal -->
+                <div class="flex gap-1 mb-2 text-xs">
+                    <button type="button" data-start-tab="easy" class="start-diff-tab flex-1 py-1 rounded-lg font-bold border transition cursor-pointer">쉬움</button>
+                    <button type="button" data-start-tab="medium" class="start-diff-tab flex-1 py-1 rounded-lg font-bold border transition cursor-pointer">보통</button>
+                    <button type="button" data-start-tab="hard" class="start-diff-tab flex-1 py-1 rounded-lg font-bold border transition cursor-pointer">어려움</button>
+                </div>
+                <div id="miniLeaderboard" class="space-y-1 text-xs text-amber-900 font-bold bg-amber-100/80 rounded-xl p-2.5 max-h-36 overflow-y-auto">
+                    <div class="text-slate-500 text-center py-2">기록을 불러오는 중...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="w-full max-w-2xl bg-amber-100/90 backdrop-blur border-4 border-amber-800 rounded-2xl p-3 sm:p-4 shadow-2xl mb-2">
+        <div class="flex justify-between items-center bg-amber-200/80 rounded-xl px-4 py-1.5 border border-amber-400/60 mb-2.5">
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-amber-900 font-bold">플레이어:</span>
+                <span id="playerBadge" class="text-sm sm:text-base font-extrabold text-amber-950 bg-amber-300 px-2.5 py-0.5 rounded-lg border border-amber-500">익명</span>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center mb-2.5">
+            <div class="bg-amber-500/20 border-2 border-amber-600 rounded-xl p-1.5 sm:p-2">
+                <span class="text-xs text-amber-900 font-bold block">현재 점수</span>
+                <span id="score" class="text-2xl sm:text-3xl font-extrabold text-amber-900">0</span>
+            </div>
+            <div class="bg-amber-500/20 border-2 border-amber-600 rounded-xl p-1.5 sm:p-2">
+                <span class="text-xs text-amber-900 font-bold block">내 최고 기록</span>
+                <span id="highScore" class="text-2xl sm:text-3xl font-extrabold text-amber-900">0</span>
+            </div>
+            <div class="bg-amber-500/20 border-2 border-amber-600 rounded-xl p-1.5 sm:p-2">
+                <span class="text-xs text-amber-900 font-bold block">남은 시간</span>
+                <span id="timer" class="text-2xl sm:text-3xl font-extrabold text-red-600">15초</span>
+            </div>
+            <div class="bg-amber-500/20 border-2 border-amber-600 rounded-xl p-1.5 sm:p-2 flex flex-col justify-center">
+                <span class="text-xs text-amber-900 font-bold block mb-0.5">난이도</span>
+                <select id="difficultyHud" class="bg-amber-50 border border-amber-700 text-amber-900 text-xs rounded-lg focus:ring-amber-500 focus:border-amber-500 block w-full p-1 text-center font-bold cursor-pointer">
+                    <option value="easy">쉬움 (3x3)</option>
+                    <option value="medium" selected>보통 (3x3)</option>
+                    <option value="hard">어려움 (4x4)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between gap-2">
+            <button id="changeUserBtn" class="bg-amber-200 hover:bg-amber-300 active:translate-y-0.5 text-amber-900 font-bold py-2 px-3 rounded-xl border border-amber-500 text-xs transition cursor-pointer">
+                <i class="fa-solid fa-user-pen"></i> 닉네임/설정
+            </button>
+            <div class="flex gap-2">
+                <button id="pauseBtn" class="bg-amber-500 hover:bg-amber-600 active:translate-y-1 text-white font-bold py-2 px-3.5 rounded-xl shadow-[0_4px_0_#b45309] transition-all text-xs sm:text-sm cursor-pointer">
+                    <i class="fa-solid fa-pause"></i> 일시정지
+                </button>
+                <button id="soundBtn" class="bg-sky-500 hover:bg-sky-600 active:translate-y-1 text-white font-bold py-2 px-3.5 rounded-xl shadow-[0_4px_0_#0369a1] transition-all text-xs sm:text-sm flex items-center gap-1 cursor-pointer">
+                    <i id="soundIcon" class="fa-solid fa-volume-high"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <main class="game-arena w-full max-w-xl flex-1 flex items-center justify-center relative my-1">
+        <div id="gridContainer" class="grid grid-cols-3 gap-3 sm:gap-4 w-full p-4 bg-emerald-800/80 rounded-3xl border-8 border-emerald-900 shadow-2xl relative">
+            <!-- Dynamically generated holes -->
+        </div>
+
+        <!-- Countdown Overlay -->
+        <div id="countdownOverlay" class="hidden absolute inset-0 bg-black/75 rounded-3xl backdrop-blur-sm flex flex-col items-center justify-center z-40 text-white">
+            <span id="countdownNumber" class="text-7xl sm:text-8xl font-black text-amber-300 drop-shadow-[0_5px_10px_rgba(0,0,0,0.8)]">3</span>
+        </div>
+
+        <!-- Pause Overlay -->
+        <div id="pauseOverlay" class="hidden absolute inset-0 bg-black/75 rounded-3xl backdrop-blur-sm flex flex-col items-center justify-center z-40 text-white">
+            <i class="fa-solid fa-pause text-5xl mb-2 text-amber-400 animate-pulse"></i>
+            <h2 class="text-3xl font-bold mb-1">일시정지 중</h2>
+            <p class="text-amber-200 mb-5 text-sm">잠시 숨 고르는 시간!</p>
+            <div class="flex gap-3">
+                <button id="resumeBtn" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2.5 px-5 rounded-xl shadow-[0_4px_0_#047857] cursor-pointer transition active:translate-y-1">
+                    <i class="fa-solid fa-play mr-1"></i> 재개
+                </button>
+                <button id="pauseHomeBtn" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 px-5 rounded-xl shadow-[0_4px_0_#b45309] cursor-pointer transition active:translate-y-1">
+                    <i class="fa-solid fa-house mr-1"></i> 처음으로
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Legend Footnote -->
+    <footer class="w-full max-w-xl bg-black/35 backdrop-blur rounded-xl p-2.5 text-white text-xs sm:text-sm flex justify-around text-center my-1.5 border border-white/10">
+        <div class="flex items-center gap-1.5">
+            <span class="w-3.5 h-3.5 rounded-full bg-amber-600 border border-white inline-block"></span>
+            <span>일반 두더지 (+12점)</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+            <span class="w-3.5 h-3.5 rounded-full bg-yellow-400 border border-white inline-block"></span>
+            <span>황금 두더지 (+33점)</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+            <span class="w-3.5 h-3.5 rounded-full bg-red-600 border border-white inline-block"></span>
+            <span>폭탄 두더지 (-15점)</span>
+        </div>
+    </footer>
+
+    <!-- Game Over / Final Results Modal -->
+    <div id="resultModal" class="hidden fixed inset-0 modal-backdrop flex items-center justify-center p-4 z-50 overflow-y-auto">
+        <div class="bg-amber-50 border-4 border-amber-800 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl text-center my-auto transform transition-all">
+            <div class="inline-block p-3 bg-amber-200 rounded-full mb-1 text-amber-800 text-4xl">
+                🏆
+            </div>
+            <h2 class="text-3xl font-black text-amber-900 mb-1">게임 종료!</h2>
+            <p id="resultPlayerName" class="text-amber-800 font-bold text-sm mb-3">플레이어님의 게임 결과표</p>
+
+            <div class="bg-amber-100/90 rounded-2xl p-3.5 border-2 border-amber-300 space-y-1.5 mb-4 text-left text-xs sm:text-sm">
+                <div class="flex justify-between items-center text-amber-900 font-bold border-b border-amber-200 pb-1">
+                    <span>최종 점수:</span>
+                    <span id="finalScore" class="text-2xl text-emerald-600">0</span>
+                </div>
+                <div class="flex justify-between items-center text-amber-800">
+                    <span>나의 순위:</span>
+                    <span id="statRank" class="font-bold text-amber-950 bg-amber-300 px-2 py-0.5 rounded border border-amber-500">-</span>
+                </div>
+                <div class="flex justify-between items-center text-amber-800">
+                    <span>적중 횟수 (Hits):</span>
+                    <span id="statHits" class="font-bold text-blue-600">0회</span>
+                </div>
+                <div class="flex justify-between items-center text-amber-800">
+                    <span>헛스윙/폭탄 (Misses):</span>
+                    <span id="statMisses" class="font-bold text-red-500">0회</span>
+                </div>
+                <div class="flex justify-between items-center text-amber-800 pt-1 border-t border-amber-200">
+                    <span>적중률 (Accuracy):</span>
+                    <span id="statAccuracy" class="font-bold text-amber-900">0%</span>
+                </div>
+            </div>
+
+            <!-- Top 10 Leaderboard in Result Modal -->
+            <div class="mb-4 bg-amber-200/60 rounded-xl p-3 border border-amber-300 text-left">
+                <h4 class="text-xs font-bold text-amber-900 mb-2 flex items-center justify-between">
+                    <span>📊 실시간 온라인 명예의 전당 (Top 10)</span>
+                    <span class="text-[10px] text-amber-700 font-normal">*난이도별 별도 저장</span>
+                </h4>
+                <!-- Difficulty Tabs for Result Modal -->
+                <div class="flex gap-1 mb-2 text-xs">
+                    <button type="button" data-result-tab="easy" class="result-diff-tab flex-1 py-1 rounded-lg font-bold border transition cursor-pointer">쉬움</button>
+                    <button type="button" data-result-tab="medium" class="result-diff-tab flex-1 py-1 rounded-lg font-bold border transition cursor-pointer">보통</button>
+                    <button type="button" data-result-tab="hard" class="result-diff-tab flex-1 py-1 rounded-lg font-bold border transition cursor-pointer">어려움</button>
+                </div>
+                <div id="modalLeaderboard" class="space-y-1 text-xs font-bold text-amber-950 max-h-40 overflow-y-auto pr-1">
+                    <!-- Dynamic Top 10 content -->
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+                <button id="restartBtn" class="w-full bg-emerald-500 hover:bg-emerald-600 active:translate-y-1 text-white font-black py-3 px-4 rounded-xl shadow-[0_4px_0_#047857] transition-all text-base sm:text-lg cursor-pointer">
+                    다시 도전하기 🔄
+                </button>
+                <button id="homeBtn" class="w-full bg-amber-400 hover:bg-amber-500 active:translate-y-1 text-amber-950 font-black py-3 px-4 rounded-xl shadow-[0_4px_0_#b45309] transition-all text-base sm:text-lg cursor-pointer">
+                    처음으로 🏠
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaderboard Full Popup Modal -->
+    <div id="fullLeaderboardModal" class="hidden fixed inset-0 modal-backdrop flex items-center justify-center p-4 z-50 overflow-y-auto">
+        <div class="bg-amber-50 border-4 border-amber-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl text-center my-auto">
+            <div class="text-4xl mb-1">🥇</div>
+            <h3 class="text-2xl font-black text-amber-900 mb-2">실시간 온라인 순위표 (Top 10)</h3>
+            
+            <!-- Difficulty Tabs for Full Leaderboard Modal -->
+            <div class="flex gap-1.5 mb-3 text-xs sm:text-sm font-bold">
+                <button type="button" data-full-tab="easy" class="full-diff-tab flex-1 py-1.5 rounded-xl border transition cursor-pointer">🌱 쉬움</button>
+                <button type="button" data-full-tab="medium" class="full-diff-tab flex-1 py-1.5 rounded-xl border transition cursor-pointer">⚔️ 보통</button>
+                <button type="button" data-full-tab="hard" class="full-diff-tab flex-1 py-1.5 rounded-xl border transition cursor-pointer">🔥 어려움</button>
+            </div>
+
+            <div id="fullLeaderboardContent" class="space-y-1.5 text-xs sm:text-sm font-bold text-amber-950 max-h-72 overflow-y-auto p-2 bg-amber-100/80 rounded-2xl border border-amber-300 text-left mb-4">
+                <!-- Leaderboard rows -->
+            </div>
+
+            <button id="closeLeaderboardBtn" class="bg-amber-800 hover:bg-amber-900 text-white font-bold py-2.5 px-6 rounded-xl transition cursor-pointer">
+                닫기
+            </button>
+        </div>
+    </div>
+
+    <!-- Custom Confirm Reset Modal -->
+    <div id="confirmModal" class="hidden fixed inset-0 modal-backdrop flex items-center justify-center p-4 z-50">
+        <div class="bg-amber-50 border-4 border-amber-800 rounded-3xl p-6 max-w-md w-full shadow-2xl text-center">
+            <div class="text-4xl mb-2">⚠️</div>
+            <h3 class="text-2xl font-black text-amber-900 mb-2">게임 중단 확인</h3>
+            <p class="text-amber-800 text-sm mb-5">현재 진행 중인 게임이 초기화됩니다.<br>정말 메인 화면으로 이동하시겠습니까?</p>
+            <div class="grid grid-cols-2 gap-3">
+                <button id="confirmCancelBtn" class="bg-slate-300 hover:bg-slate-400 text-slate-800 font-bold py-2.5 px-4 rounded-xl transition cursor-pointer">
+                    취소
+                </button>
+                <button id="confirmOkBtn" class="bg-rose-500 hover:bg-rose-600 text-white font-bold py-2.5 px-4 rounded-xl transition cursor-pointer">
+                    확인
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase Configuration & Setup
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'whack-a-mole-game';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+
+        window.cloudLeaderboards = { easy: [], medium: [], hard: [] };
+        let db = null;
+        let auth = null;
+        let currentUser = null;
+
+        if (firebaseConfig) {
+            try {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                // Auth Before Queries Rule
+                async function initCloud() {
+                    try {
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await signInWithCustomToken(auth, __initial_auth_token);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                        currentUser = auth.currentUser;
+                        setupLeaderboardListener();
+                    } catch (e) {
+                        console.warn("Auth initialization failed, falling back to local mode:", e);
+                    }
+                }
+                initCloud();
+            } catch (e) {
+                console.warn("Cloud connection error, using local storage:", e);
+            }
+        }
+
+        function setupLeaderboardListener() {
+            if (!db || !currentUser) return;
+            
+            // STRICT PATH: /artifacts/{appId}/public/data/leaderboard
+            const leaderboardsCol = collection(db, 'artifacts', appId, 'public', 'data', 'leaderboard');
+
+            // Simple collection listener (NO complex queries/orderBy per rules)
+            onSnapshot(leaderboardsCol, (snapshot) => {
+                const data = { easy: [], medium: [], hard: [] };
+                snapshot.forEach(docSnap => {
+                    const item = docSnap.data();
+                    if (item && item.difficulty && data[item.difficulty]) {
+                        data[item.difficulty].push(item);
+                    }
+                });
+
+                // Sort & filter 1 entry per nickname in JS memory
+                ['easy', 'medium', 'hard'].forEach(diff => {
+                    data[diff].sort((a, b) => b.score - a.score || b.accuracy - a.accuracy || (b.updatedAt || 0) - (a.updatedAt || 0));
+                    data[diff] = data[diff].slice(0, 10);
+                });
+
+                window.cloudLeaderboards = data;
+                if (typeof window.updateLeaderboardsUI === 'function') {
+                    window.updateLeaderboardsUI();
+                }
+            }, (error) => {
+                console.error("Leaderboard snapshot error:", error);
+            });
+        }
+
+        window.saveCloudScore = async function(nickname, scoreVal, accuracyVal, diff) {
+            if (!db || !currentUser) return false;
+            try {
+                // Single entry per nickname docId: `${diff}_${nickname}`
+                const docId = `${diff}_${nickname.trim()}`;
+                const leaderboardDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'leaderboard', docId);
+
+                // Check existing score from cached cloud memory
+                const existingList = window.cloudLeaderboards[diff] || [];
+                const existing = existingList.find(i => i.name === nickname);
+
+                if (!existing || scoreVal > existing.score || (scoreVal === existing.score && accuracyVal > existing.accuracy)) {
+                    await setDoc(leaderboardDocRef, {
+                        name: nickname,
+                        score: scoreVal,
+                        accuracy: accuracyVal,
+                        difficulty: diff,
+                        updatedAt: Date.now()
+                    });
+                    return true;
+                }
+            } catch (err) {
+                console.error("Error writing score to cloud:", err);
+            }
+            return false;
+        };
+    </script>
+
+    <script>
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (AudioContext) {
+                        this.ctx = new AudioContext();
+                    }
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            playPop() {
+                if (soundMuted) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(300, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(600, this.ctx.currentTime + 0.08);
+
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.08);
+            }
+
+            playHit() {
+                if (soundMuted) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + 0.12);
+
+                gain.gain.setValueAtTime(0.5, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.12);
+            }
+
+            playGoldenHit() {
+                if (soundMuted) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const now = this.ctx.currentTime;
+                [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.05);
+
+                    gain.gain.setValueAtTime(0.2, now + idx * 0.05);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.05 + 0.15);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+
+                    osc.start(now + idx * 0.05);
+                    osc.stop(now + idx * 0.05 + 0.15);
+                });
+            }
+
+            playBomb() {
+                if (soundMuted) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(120, now);
+                osc.frequency.linearRampToValueAtTime(30, now + 0.3);
+
+                gain.gain.setValueAtTime(0.6, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.3);
+            }
+
+            playBeep(isHigh = false) {
+                if (soundMuted) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(isHigh ? 880 : 440, this.ctx.currentTime);
+
+                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.15);
+            }
+
+            playGameOver() {
+                if (soundMuted) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const now = this.ctx.currentTime;
+                [400, 350, 300, 250].forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.1);
+
+                    gain.gain.setValueAtTime(0.2, now + idx * 0.1);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.1 + 0.2);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+
+                    osc.start(now + idx * 0.1);
+                    osc.stop(now + idx * 0.1 + 0.2);
+                });
+            }
+        }
+
+        const moleSVGs = {
+            regular: `
+                <svg viewBox="0 0 100 100" class="w-full h-full">
+                    <ellipse cx="50" cy="55" rx="38" ry="42" fill="#8d5524"/>
+                    <ellipse cx="50" cy="62" rx="26" ry="22" fill="#e0ac69"/>
+                    <circle cx="38" cy="42" r="5" fill="#000"/>
+                    <circle cx="62" cy="42" r="5" fill="#000"/>
+                    <circle cx="36" cy="40" r="1.8" fill="#fff"/>
+                    <circle cx="60" cy="40" r="1.8" fill="#fff"/>
+                    <ellipse cx="50" cy="52" rx="7" ry="5" fill="#e11d48"/>
+                    <circle cx="28" cy="50" r="4" fill="#fb7185" opacity="0.6"/>
+                    <circle cx="72" cy="50" r="4" fill="#fb7185" opacity="0.6"/>
+                    <path d="M 44 58 Q 50 64 56 58" stroke="#451a03" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                </svg>
+            `,
+            golden: `
+                <svg viewBox="0 0 100 100" class="w-full h-full mole-golden-glow">
+                    <!-- 몸통 -->
+                    <ellipse cx="50" cy="55" rx="38" ry="42" fill="#f59e0b"/>
+                    <!-- 배 영역 -->
+                    <ellipse cx="50" cy="62" rx="26" ry="22" fill="#fef08a"/>
+                    <!-- 황금 왕관 -->
+                    <path d="M 34 22 L 42 28 L 50 14 L 58 28 L 66 22 L 63 32 L 37 32 Z" fill="#facc15" stroke="#78350f" stroke-width="2" stroke-linejoin="round"/>
+                    <circle cx="50" cy="14" r="2.5" fill="#ef4444"/>
+                    <circle cx="34" cy="22" r="2" fill="#3b82f6"/>
+                    <circle cx="66" cy="22" r="2" fill="#3b82f6"/>
+                    <!-- 눈 -->
+                    <circle cx="38" cy="42" r="5" fill="#1e293b"/>
+                    <circle cx="62" cy="42" r="5" fill="#1e293b"/>
+                    <circle cx="36" cy="40" r="1.8" fill="#fff"/>
+                    <circle cx="60" cy="40" r="1.8" fill="#fff"/>
+                    <!-- 코 -->
+                    <ellipse cx="50" cy="52" rx="7" ry="5" fill="#f43f5e"/>
+                    <!-- 볼터치 -->
+                    <circle cx="28" cy="52" r="4" fill="#f472b6" opacity="0.8"/>
+                    <circle cx="72" cy="52" r="4" fill="#f472b6" opacity="0.8"/>
+                    <!-- 미소 -->
+                    <path d="M 42 58 Q 50 66 58 58" stroke="#78350f" stroke-width="3" fill="none" stroke-linecap="round"/>
+                    <!-- 광택 하이라이트 -->
+                    <path d="M 22 45 Q 20 35 26 30" stroke="#ffffff" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.6"/>
+                </svg>
+            `,
+            bomb: `
+                <svg viewBox="0 0 100 100" class="w-full h-full">
+                    <ellipse cx="50" cy="58" rx="38" ry="40" fill="#1e293b"/>
+                    <ellipse cx="50" cy="65" rx="25" ry="20" fill="#475569"/>
+                    <path d="M 50 20 Q 58 10 65 14" stroke="#94a3b8" stroke-width="3" fill="none"/>
+                    <circle cx="65" cy="14" r="3" fill="#ef4444" class="animate-ping"/>
+                    <circle cx="65" cy="14" r="2" fill="#facc15"/>
+                    <path d="M 30 38 L 44 44" stroke="#ef4444" stroke-width="3.5" stroke-linecap="round"/>
+                    <path d="M 70 38 L 56 44" stroke="#ef4444" stroke-width="3.5" stroke-linecap="round"/>
+                    <circle cx="38" cy="46" r="4" fill="#dc2626"/>
+                    <circle cx="62" cy="46" r="4" fill="#dc2626"/>
+                    <ellipse cx="50" cy="54" rx="6" ry="4" fill="#0f172a"/>
+                    <path d="M 42 64 Q 50 58 58 64" stroke="#0f172a" stroke-width="3" fill="none" stroke-linecap="round"/>
+                </svg>
+            `
+        };
+
+        let playerNickname = '플레이어';
+        let score = 0;
+        let timeLeft = 15;
+        let gameInterval = null;
+        let molePopTimeout = null;
+        let countdownTimer = null;
+        let isPlaying = false;
+        let isPaused = false;
+        let soundMuted = false;
+        let lastHole = null;
+
+        let hitsCount = 0;
+        let missesCount = 0;
+
+        let currentStartTab = 'medium';
+        let currentResultTab = 'medium';
+        let currentFullTab = 'medium';
+        let activeGameDiff = 'medium';
+
+        const audio = new SoundEngine();
+
+        const settings = {
+            easy: { grid: 9, cols: 'grid-cols-3', minTime: 750, maxTime: 1300, goldenChance: 0.2, bombChance: 0.12 },
+            medium: { grid: 9, cols: 'grid-cols-3', minTime: 450, maxTime: 850, goldenChance: 0.25, bombChance: 0.22 },
+            hard: { grid: 16, cols: 'grid-cols-4', minTime: 300, maxTime: 650, goldenChance: 0.3, bombChance: 0.3 }
+        };
+
+        const nicknameModal = document.getElementById('nicknameModal');
+        const nicknameForm = document.getElementById('nicknameForm');
+        const nicknameInput = document.getElementById('nicknameInput');
+        const difficultyStartSelect = document.getElementById('difficultyStartSelect');
+        const miniLeaderboard = document.getElementById('miniLeaderboard');
+        const viewLeaderboardBtn = document.getElementById('viewLeaderboardBtn');
+
+        const gridContainer = document.getElementById('gridContainer');
+        const countdownOverlay = document.getElementById('countdownOverlay');
+        const countdownNumber = document.getElementById('countdownNumber');
+        const playerBadge = document.getElementById('playerBadge');
+        const scoreDisplay = document.getElementById('score');
+        const highScoreDisplay = document.getElementById('highScore');
+        const timerDisplay = document.getElementById('timer');
+        const difficultyHud = document.getElementById('difficultyHud');
+
+        const changeUserBtn = document.getElementById('changeUserBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const resumeBtn = document.getElementById('resumeBtn');
+        const pauseHomeBtn = document.getElementById('pauseHomeBtn');
+        const soundBtn = document.getElementById('soundBtn');
+        const soundIcon = document.getElementById('soundIcon');
+        const pauseOverlay = document.getElementById('pauseOverlay');
+
+        const resultModal = document.getElementById('resultModal');
+        const resultPlayerName = document.getElementById('resultPlayerName');
+        const finalScore = document.getElementById('finalScore');
+        const statRank = document.getElementById('statRank');
+        const statHits = document.getElementById('statHits');
+        const statMisses = document.getElementById('statMisses');
+        const statAccuracy = document.getElementById('statAccuracy');
+        const modalLeaderboard = document.getElementById('modalLeaderboard');
+
+        const restartBtn = document.getElementById('restartBtn');
+        const homeBtn = document.getElementById('homeBtn');
+
+        const fullLeaderboardModal = document.getElementById('fullLeaderboardModal');
+        const fullLeaderboardContent = document.getElementById('fullLeaderboardContent');
+        const closeLeaderboardBtn = document.getElementById('closeLeaderboardBtn');
+
+        const confirmModal = document.getElementById('confirmModal');
+        const confirmOkBtn = document.getElementById('confirmOkBtn');
+        const confirmCancelBtn = document.getElementById('confirmCancelBtn');
+
+        function getAllLeaderboards() {
+            // Priority: Real-time Cloud Leaderboards
+            if (window.cloudLeaderboards && (window.cloudLeaderboards.easy.length > 0 || window.cloudLeaderboards.medium.length > 0 || window.cloudLeaderboards.hard.length > 0)) {
+                return window.cloudLeaderboards;
+            }
+            try {
+                const raw = localStorage.getItem('whack_mole_leaderboards_v3');
+                if (raw) return JSON.parse(raw);
+            } catch (e) {}
+            return { easy: [], medium: [], hard: [] };
+        }
+
+        function getLeaderboard(diff = 'medium') {
+            const allBoards = getAllLeaderboards();
+            return allBoards[diff] || [];
+        }
+
+        function saveScoreToLeaderboard(nickname, scoreVal, accuracyVal, diff = 'medium') {
+            // Trigger Cloud Storage sync
+            if (typeof window.saveCloudScore === 'function') {
+                window.saveCloudScore(nickname, scoreVal, accuracyVal, diff);
+            }
+
+            const allBoards = getAllLeaderboards();
+            let board = allBoards[diff] || [];
+            const dateStr = new Date().toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            
+            const existingIndex = board.findIndex(item => item.name === nickname);
+
+            if (existingIndex !== -1) {
+                const existing = board[existingIndex];
+                if (scoreVal > existing.score || (scoreVal === existing.score && accuracyVal > existing.accuracy)) {
+                    board[existingIndex] = {
+                        name: nickname,
+                        score: scoreVal,
+                        accuracy: accuracyVal,
+                        date: dateStr,
+                        timestamp: Date.now()
+                    };
+                }
+            } else {
+                board.push({
+                    name: nickname,
+                    score: scoreVal,
+                    accuracy: accuracyVal,
+                    date: dateStr,
+                    timestamp: Date.now()
+                });
+            }
+
+            board.sort((a, b) => b.score - a.score || b.accuracy - a.accuracy || b.timestamp - a.timestamp);
+            board = board.slice(0, 10);
+            allBoards[diff] = board;
+            
+            try {
+                localStorage.setItem('whack_mole_leaderboards_v3', JSON.stringify(allBoards));
+            } catch(e) {}
+            
+            return board;
+        }
+
+        function renderLeaderboardHTML(board, highlightName = null, highlightScore = null) {
+            if (!board || board.length === 0) {
+                return `<div class="text-slate-500 text-center py-3">등록된 기록이 없습니다. 첫 1등이 되어보세요!</div>`;
+            }
+
+            return board.map((item, idx) => {
+                let rankBadge = `<span class="inline-block w-5 text-center font-bold text-amber-900">${idx + 1}</span>`;
+                if (idx === 0) rankBadge = `<span class="inline-block w-5 text-center text-yellow-500 font-extrabold text-sm">🥇</span>`;
+                else if (idx === 1) rankBadge = `<span class="inline-block w-5 text-center text-slate-400 font-extrabold text-sm">🥈</span>`;
+                else if (idx === 2) rankBadge = `<span class="inline-block w-5 text-center text-amber-700 font-extrabold text-sm">🥉</span>`;
+
+                const isCurrent = (highlightName && item.name === highlightName && item.score === highlightScore);
+                const bgStyle = isCurrent ? 'bg-amber-300 border-amber-500 font-black' : 'bg-amber-100/70 border-amber-200';
+
+                return `
+                    <div class="flex items-center justify-between p-2 rounded-xl border ${bgStyle} transition-all">
+                        <div class="flex items-center gap-2 overflow-hidden">
+                            ${rankBadge}
+                            <span class="truncate max-w-[110px] sm:max-w-[140px]">${item.name}</span>
+                        </div>
+                        <div class="flex items-center gap-2 text-right">
+                            <span class="text-emerald-700 font-black">${item.score}점</span>
+                            <span class="text-[10px] text-amber-800/80 font-normal hidden sm:inline">(${item.accuracy}%)</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateTabStyles(selector, activeDiff) {
+            document.querySelectorAll(selector).forEach(btn => {
+                const diff = btn.dataset.startTab || btn.dataset.resultTab || btn.dataset.fullTab;
+                if (diff === activeDiff) {
+                    btn.className = btn.className.replace(/bg-\w+-\d+/g, '').replace(/text-\w+-\d+/g, '').replace(/border-\w+-\d+/g, '') +
+                        ' bg-amber-400 text-amber-950 border-amber-600 font-black shadow-sm';
+                } else {
+                    btn.className = btn.className.replace(/bg-\w+-\d+/g, '').replace(/text-\w+-\d+/g, '').replace(/border-\w+-\d+/g, '') +
+                        ' bg-amber-100/80 text-amber-800 border-amber-300 font-bold hover:bg-amber-200';
+                }
+            });
+        }
+
+        window.updateLeaderboardsUI = function(currentScore = null) {
+            const miniBoard = getLeaderboard(currentStartTab);
+            miniLeaderboard.innerHTML = renderLeaderboardHTML(miniBoard.slice(0, 5));
+            updateTabStyles('.start-diff-tab', currentStartTab);
+
+            const modalBoard = getLeaderboard(currentResultTab);
+            const showHighlightInResult = (currentResultTab === activeGameDiff) ? currentScore : null;
+            modalLeaderboard.innerHTML = renderLeaderboardHTML(modalBoard, playerNickname, showHighlightInResult);
+            updateTabStyles('.result-diff-tab', currentResultTab);
+
+            const fullBoard = getLeaderboard(currentFullTab);
+            const showHighlightInFull = (currentFullTab === activeGameDiff) ? currentScore : null;
+            fullLeaderboardContent.innerHTML = renderLeaderboardHTML(fullBoard, playerNickname, showHighlightInFull);
+            updateTabStyles('.full-diff-tab', currentFullTab);
+        };
+
+        function getUserHighScore(nickname, diff) {
+            const board = getLeaderboard(diff);
+            const userEntries = board.filter(item => item.name === nickname);
+            if (userEntries.length === 0) return 0;
+            return Math.max(...userEntries.map(e => e.score));
+        }
+
+        function getUserRank(nickname, scoreVal, diff) {
+            const board = getLeaderboard(diff);
+            const idx = board.findIndex(item => item.name === nickname);
+            return idx !== -1 ? `${idx + 1}위` : '순위 밖';
+        }
+
+        function buildGrid() {
+            gridContainer.innerHTML = '';
+            const diffKey = difficultyHud.value;
+            const config = settings[diffKey] || settings.medium;
+
+            gridContainer.className = `grid ${config.cols} gap-3 sm:gap-4 w-full p-4 bg-emerald-800/80 rounded-3xl border-8 border-emerald-900 shadow-2xl relative`;
+
+            for (let i = 0; i < config.grid; i++) {
+                const frame = document.createElement('div');
+                frame.className = 'hole-frame';
+
+                const hole = document.createElement('div');
+                hole.className = 'hole';
+                hole.dataset.index = i;
+
+                const mole = document.createElement('div');
+                mole.className = 'mole';
+                mole.dataset.index = i;
+
+                hole.appendChild(mole);
+                frame.appendChild(hole);
+                gridContainer.appendChild(frame);
+
+                hole.addEventListener('click', (e) => {
+                    if (e.target === hole || e.target.classList.contains('hole')) {
+                        if (isPlaying && !isPaused) {
+                            missesCount++;
+                        }
+                    }
+                });
+            }
+        }
+
+        function getRandomHole() {
+            const holes = document.querySelectorAll('.hole');
+            const idx = Math.floor(Math.random() * holes.length);
+            const hole = holes[idx];
+            if (hole === lastHole) {
+                return getRandomHole();
+            }
+            lastHole = hole;
+            return hole;
+        }
+
+        function popMole() {
+            if (!isPlaying || isPaused) return;
+
+            const diffKey = difficultyHud.value;
+            const config = settings[diffKey] || settings.medium;
+
+            const hole = getRandomHole();
+            const mole = hole.querySelector('.mole');
+
+            const rand = Math.random();
+            let type = 'regular';
+            if (rand < config.bombChance) {
+                type = 'bomb';
+            } else if (rand < config.bombChance + config.goldenChance) {
+                type = 'golden';
+            }
+
+            mole.innerHTML = moleSVGs[type];
+            mole.dataset.type = type;
+            mole.classList.add('up');
+            mole.classList.remove('whacked');
+
+            audio.playPop();
+
+            const popTime = Math.floor(Math.random() * (config.maxTime - config.minTime)) + config.minTime;
+
+            molePopTimeout = setTimeout(() => {
+                mole.classList.remove('up');
+                if (isPlaying && !isPaused) {
+                    molePopTimeout = setTimeout(popMole, Math.floor(Math.random() * 300) + 150);
+                }
+            }, popTime);
+
+            mole.onclick = (e) => {
+                e.stopPropagation();
+                if (!mole.classList.contains('up') || mole.classList.contains('whacked')) return;
+                whack(hole, mole, type);
+            };
+        }
+
+        function triggerHammerBonk(hole) {
+            const frame = hole.parentElement || hole;
+            
+            const oldHammer = frame.querySelector('.hammer-overlay');
+            if (oldHammer) oldHammer.remove();
+
+            const hammer = document.createElement('div');
+            hammer.className = 'hammer-overlay';
+            hammer.innerHTML = `
+                <svg viewBox="0 0 120 120" class="w-full h-full drop-shadow-xl">
+                    <g transform="rotate(-10 60 60)">
+                        <polygon points="20,10 30,25 10,30 25,40 15,55 35,48 30,65 50,55 55,70 65,55 75,65 70,48 85,55 75,40 90,30 70,25 80,10 60,20 50,5 40,20" fill="#fef08a" stroke="#f59e0b" stroke-width="2.5" opacity="0.95"/>
+                        <rect x="30" y="48" width="16" height="62" rx="6" fill="#b45309" stroke="#451a03" stroke-width="3"/>
+                        <line x1="33" y1="65" x2="43" y2="65" stroke="#78350f" stroke-width="2.5"/>
+                        <line x1="33" y1="78" x2="43" y2="78" stroke="#78350f" stroke-width="2.5"/>
+                        <line x1="33" y1="91" x2="43" y2="91" stroke="#78350f" stroke-width="2.5"/>
+                        <rect x="10" y="12" width="28" height="48" rx="10" fill="#ef4444" stroke="#7f1d1d" stroke-width="3.5"/>
+                        <rect x="82" y="12" width="28" height="48" rx="10" fill="#ef4444" stroke="#7f1d1d" stroke-width="3.5"/>
+                        <rect x="20" y="16" width="80" height="40" rx="10" fill="#facc15" stroke="#854d0e" stroke-width="3.5"/>
+                        <rect x="26" y="20" width="68" height="32" rx="6" fill="#fef08a" opacity="0.5"/>
+                        <line x1="35" y1="16" x2="35" y2="56" stroke="#ca8a04" stroke-width="3"/>
+                        <line x1="85" y1="16" x2="85" y2="56" stroke="#ca8a04" stroke-width="3"/>
+                        <ellipse cx="60" cy="24" rx="20" ry="4" fill="#ffffff" opacity="0.8"/>
+                    </g>
+                </svg>`;
+            frame.appendChild(hammer);
+            setTimeout(() => hammer.remove(), 400);
+
+            const pow = document.createElement('div');
+            pow.className = 'hit-pow-effect';
+            pow.innerHTML = '💥 BONK!';
+            frame.appendChild(pow);
+            setTimeout(() => pow.remove(), 500);
+
+            const stars = document.createElement('div');
+            stars.className = 'floating-score text-yellow-300 text-3xl';
+            stars.style.top = '-15%';
+            stars.style.left = '50%';
+            stars.innerHTML = '💫✨';
+            frame.appendChild(stars);
+            setTimeout(() => stars.remove(), 500);
+        }
+
+        function whack(hole, mole, type) {
+            mole.classList.add('whacked');
+            mole.classList.remove('up');
+            triggerHammerBonk(hole);
+
+            hitsCount++;
+
+            let pts = 0;
+            if (type === 'regular') {
+                pts = 12;
+                score += pts;
+                audio.playHit();
+                showFloatingText(hole, `+${pts}`, 'text-emerald-300');
+            } else if (type === 'golden') {
+                pts = 33;
+                score += pts;
+                audio.playGoldenHit();
+                showFloatingText(hole, `+${pts}`, 'text-yellow-300');
+                triggerGoldenSparkle(hole);
+            } else if (type === 'bomb') {
+                pts = -15;
+                score = Math.max(0, score + pts);
+                audio.playBomb();
+                showFloatingText(hole, `${pts}`, 'text-rose-500');
+                triggerExplosion(hole);
+            }
+
+            scoreDisplay.textContent = score;
+
+            clearTimeout(molePopTimeout);
+            molePopTimeout = setTimeout(popMole, Math.floor(Math.random() * 250) + 100);
+        }
+
+        function showFloatingText(hole, text, colorClass) {
+            const el = document.createElement('div');
+            el.className = `floating-score ${colorClass}`;
+            el.textContent = text;
+            el.style.left = '50%';
+            el.style.top = '20%';
+            hole.appendChild(el);
+            setTimeout(() => el.remove(), 850);
+        }
+
+        function triggerExplosion(hole) {
+            document.body.classList.add('shake-effect');
+            setTimeout(() => document.body.classList.remove('shake-effect'), 400);
+
+            const particle = document.createElement('div');
+            particle.className = 'explosion-particle text-center text-4xl flex items-center justify-center';
+            particle.innerHTML = '💥';
+            hole.appendChild(particle);
+            setTimeout(() => particle.remove(), 500);
+        }
+
+        function triggerGoldenSparkle(hole) {
+            hole.classList.add('golden-glow-effect');
+            setTimeout(() => hole.classList.remove('golden-glow-effect'), 500);
+
+            const particle = document.createElement('div');
+            particle.className = 'golden-sparkle-particle text-center text-4xl flex items-center justify-center';
+            particle.innerHTML = '✨💰✨';
+            hole.appendChild(particle);
+            setTimeout(() => particle.remove(), 600);
+        }
+
+        function startCountdownAndGame() {
+            nicknameModal.classList.add('hidden');
+            resultModal.classList.add('hidden');
+            fullLeaderboardModal.classList.add('hidden');
+            pauseOverlay.classList.add('hidden');
+
+            activeGameDiff = difficultyHud.value;
+            highScoreDisplay.textContent = getUserHighScore(playerNickname, activeGameDiff);
+
+            score = 0;
+            hitsCount = 0;
+            missesCount = 0;
+            timeLeft = 15;
+
+            scoreDisplay.textContent = '0';
+            timerDisplay.textContent = '15초';
+            difficultyHud.disabled = true;
+
+            let count = 3;
+            countdownNumber.textContent = count;
+            countdownOverlay.classList.remove('hidden');
+            audio.playBeep(false);
+
+            clearInterval(countdownTimer);
+            countdownTimer = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    countdownNumber.textContent = count;
+                    audio.playBeep(false);
+                } else if (count === 0) {
+                    countdownNumber.textContent = '시작!';
+                    audio.playBeep(true);
+                } else {
+                    clearInterval(countdownTimer);
+                    countdownOverlay.classList.add('hidden');
+                    runGame();
+                }
+            }, 850);
+        }
+
+        function runGame() {
+            isPlaying = true;
+            isPaused = false;
+
+            clearInterval(gameInterval);
+            gameInterval = setInterval(() => {
+                if (!isPaused) {
+                    timeLeft--;
+                    timerDisplay.textContent = `${timeLeft}초`;
+                    if (timeLeft <= 0) {
+                        endGame();
+                    }
+                }
+            }, 1000);
+
+            popMole();
+        }
+
+        function endGame() {
+            isPlaying = false;
+            clearInterval(gameInterval);
+            clearTimeout(molePopTimeout);
+
+            audio.playGameOver();
+
+            const totalAttempts = hitsCount + missesCount;
+            const accuracy = totalAttempts > 0 ? Math.round((hitsCount / totalAttempts) * 100) : 0;
+            const currentDiff = difficultyHud.value;
+            activeGameDiff = currentDiff;
+            currentResultTab = currentDiff;
+            currentFullTab = currentDiff;
+
+            saveScoreToLeaderboard(playerNickname, score, accuracy, currentDiff);
+            window.updateLeaderboardsUI(score);
+
+            const userRank = getUserRank(playerNickname, score, currentDiff);
+
+            resultPlayerName.textContent = `[${playerNickname}] 님의 게임 결과표 (${currentDiff === 'easy' ? '쉬움' : currentDiff === 'hard' ? '어려움' : '보통'})`;
+            finalScore.textContent = score;
+            statRank.textContent = userRank;
+            statHits.textContent = `${hitsCount}회`;
+            statMisses.textContent = `${missesCount}회`;
+            statAccuracy.textContent = `${accuracy}%`;
+
+            difficultyHud.disabled = false;
+            resultModal.classList.remove('hidden');
+        }
+
+        document.querySelectorAll('.start-diff-tab').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                currentStartTab = e.target.dataset.startTab;
+                window.updateLeaderboardsUI();
+            });
+        });
+
+        document.querySelectorAll('.result-diff-tab').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                currentResultTab = e.target.dataset.resultTab;
+                window.updateLeaderboardsUI(score);
+            });
+        });
+
+        document.querySelectorAll('.full-diff-tab').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                currentFullTab = e.target.dataset.fullTab;
+                window.updateLeaderboardsUI(score);
+            });
+        });
+
+        difficultyStartSelect.addEventListener('change', (e) => {
+            currentStartTab = e.target.value;
+            window.updateLeaderboardsUI();
+        });
+
+        nicknameForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const val = nicknameInput.value.trim();
+            if (val) {
+                playerNickname = val;
+                playerBadge.textContent = playerNickname;
+                difficultyHud.value = difficultyStartSelect.value;
+                activeGameDiff = difficultyHud.value;
+                currentResultTab = activeGameDiff;
+                currentFullTab = activeGameDiff;
+                buildGrid();
+                startCountdownAndGame();
+            }
+        });
+
+        difficultyHud.addEventListener('change', () => {
+            buildGrid();
+            activeGameDiff = difficultyHud.value;
+            highScoreDisplay.textContent = getUserHighScore(playerNickname, activeGameDiff);
+        });
+
+        pauseBtn.addEventListener('click', () => {
+            if (!isPlaying) return;
+            isPaused = true;
+            pauseOverlay.classList.remove('hidden');
+        });
+
+        resumeBtn.addEventListener('click', () => {
+            isPaused = false;
+            pauseOverlay.classList.add('hidden');
+            popMole();
+        });
+
+        pauseHomeBtn.addEventListener('click', () => {
+            confirmModal.classList.remove('hidden');
+        });
+
+        confirmCancelBtn.addEventListener('click', () => {
+            confirmModal.classList.add('hidden');
+        });
+
+        confirmOkBtn.addEventListener('click', () => {
+            confirmModal.classList.add('hidden');
+            pauseOverlay.classList.add('hidden');
+            isPlaying = false;
+            isPaused = false;
+            clearInterval(gameInterval);
+            clearTimeout(molePopTimeout);
+            clearInterval(countdownTimer);
+            difficultyHud.disabled = false;
+            nicknameModal.classList.remove('hidden');
+        });
+
+        changeUserBtn.addEventListener('click', () => {
+            if (isPlaying) {
+                confirmModal.classList.remove('hidden');
+            } else {
+                nicknameModal.classList.remove('hidden');
+            }
+        });
+
+        soundBtn.addEventListener('click', () => {
+            soundMuted = !soundMuted;
+            soundIcon.className = soundMuted ? 'fa-solid fa-volume-xmark' : 'fa-solid fa-volume-high';
+        });
+
+        viewLeaderboardBtn.addEventListener('click', () => {
+            currentFullTab = currentStartTab;
+            window.updateLeaderboardsUI();
+            fullLeaderboardModal.classList.remove('hidden');
+        });
+
+        closeLeaderboardBtn.addEventListener('click', () => {
+            fullLeaderboardModal.classList.add('hidden');
+        });
+
+        restartBtn.addEventListener('click', () => {
+            startCountdownAndGame();
+        });
+
+        homeBtn.addEventListener('click', () => {
+            resultModal.classList.add('hidden');
+            nicknameModal.classList.remove('hidden');
+        });
+
+        // App initialization on window load
+        window.addEventListener('load', () => {
+            currentStartTab = difficultyStartSelect.value;
+            window.updateLeaderboardsUI();
+            buildGrid();
+        });
+    </script>
+</body>
+</html>

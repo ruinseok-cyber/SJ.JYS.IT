@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>폭탄 테트리스 (Bomb Tetris)</title>
+    <style>
+        :root {
+            --bg-color: #0d0f18;
+            --panel-bg: rgba(22, 27, 46, 0.85);
+            --border-color: #2a3352;
+            --accent-color: #00f0ff;
+            --bomb-color: #ff2a5f;
+            --text-color: #f0f4f8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 50% 30%, #1a1f38 0%, transparent 70%),
+                linear-gradient(to bottom, #05070a, #0d0f18);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            padding: 10px;
+        }
+
+        header {
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2rem;
+            letter-spacing: 3px;
+            color: var(--accent-color);
+            text-shadow: 0 0 10px rgba(0, 240, 255, 0.5), 0 0 20px rgba(0, 240, 255, 0.3);
+            text-transform: uppercase;
+        }
+
+        .container {
+            display: flex;
+            gap: 15px;
+            align-items: flex-start;
+            background: rgba(10, 12, 20, 0.6);
+            padding: 15px;
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+        }
+
+        .panel {
+            width: 170px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .panel-box {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 8px;
+            text-align: center;
+        }
+
+        .panel-title {
+            font-size: 0.7rem;
+            color: #8a99ad;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+
+        .panel-value {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #ffffff;
+        }
+
+        .player-name {
+            color: var(--accent-color);
+            font-size: 0.95rem;
+            word-break: break-all;
+        }
+
+        .high-score { color: #ffd700; }
+        .combo-val { color: #ff9900; }
+
+        /* 명예의 전당 (리더보드) 스타일 */
+        .leaderboard-list {
+            list-style: none;
+            font-size: 0.75rem;
+            text-align: left;
+            margin-top: 4px;
+        }
+
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 2px 0;
+            border-bottom: 1px dotted rgba(255, 255, 255, 0.1);
+        }
+
+        .leaderboard-item:last-child { border-bottom: none; }
+        .rank-num { color: var(--accent-color); font-weight: bold; }
+        .rank-name { color: #ddd; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .rank-score { color: #ffd700; font-weight: bold; }
+
+        canvas.preview {
+            background: #000;
+            border-radius: 4px;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .game-board-wrapper {
+            position: relative;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+            overflow: hidden;
+        }
+
+        #game-board {
+            background: #05070c;
+            display: block;
+        }
+
+        .controls-hint {
+            font-size: 0.65rem;
+            color: #6c7a89;
+            line-height: 1.3;
+            text-align: left;
+        }
+
+        .controls-hint span {
+            color: #fff;
+            font-weight: bold;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #2a3352, #181e36);
+            border: 1px solid var(--border-color);
+            color: #fff;
+            padding: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 0.75rem;
+        }
+
+        .btn:hover {
+            background: linear-gradient(135deg, #3a4772, #222b4c);
+            border-color: var(--accent-color);
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
+        }
+
+        /* 모달 팝업 */
+        .modal-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(5, 7, 12, 0.88);
+            backdrop-filter: blur(5px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: var(--panel-bg);
+            border: 2px solid var(--accent-color);
+            border-radius: 12px;
+            padding: 20px;
+            width: 90%;
+            max-width: 260px;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(0, 240, 255, 0.2);
+        }
+
+        .modal-title {
+            font-size: 1.3rem;
+            color: var(--accent-color);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .name-input {
+            width: 100%;
+            padding: 8px;
+            background: #000;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: #fff;
+            font-size: 0.95rem;
+            text-align: center;
+            margin-bottom: 12px;
+            outline: none;
+        }
+
+        .name-input:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 8px rgba(0, 240, 255, 0.5);
+        }
+
+        .hidden { display: none !important; }
+
+        /* 터치용 모바일 버튼 */
+        .touch-controls {
+            display: none;
+            margin-top: 10px;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            width: 100%;
+            max-width: 360px;
+        }
+
+        @media (max-width: 768px) {
+            .container { flex-direction: column; align-items: center; }
+            .panel { width: 100%; flex-direction: row; flex-wrap: wrap; justify-content: space-between; }
+            .panel-box { flex: 1 1 45%; }
+            .touch-controls { display: grid; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>BOMB TETRIS</h1>
+    </header>
+
+    <div class="container">
+        <!-- 좌측 패널: 홀드, 플레이어 정보, 현재 점수, 개인 최고 점수 -->
+        <div class="panel">
+            <div class="panel-box">
+                <div class="panel-title">HOLD</div>
+                <canvas id="hold-canvas" class="preview" width="70" height="70"></canvas>
+            </div>
+            <div class="panel-box">
+                <div class="panel-title">PLAYER</div>
+                <div id="disp-player" class="panel-value player-name">-</div>
+            </div>
+            <div class="panel-box">
+                <div class="panel-title">SCORE</div>
+                <div id="disp-score" class="panel-value">0</div>
+            </div>
+            <div class="panel-box">
+                <div class="panel-title">MY BEST SCORE</div>
+                <div id="disp-high-score" class="panel-value high-score">0</div>
+            </div>
+            <div class="panel-box">
+                <div class="panel-title">COMBO</div>
+                <div id="disp-combo" class="panel-value combo-val">0</div>
+            </div>
+        </div>
+
+        <!-- 중앙 게임판 -->
+        <div class="game-board-wrapper">
+            <canvas id="game-board" width="300" height="600"></canvas>
+
+            <!-- 시작 / 재시작 / 이름 입력 모달 -->
+            <div id="name-modal" class="modal-overlay">
+                <div class="modal-content">
+                    <div id="modal-heading" class="modal-title">GAME START</div>
+                    <p id="modal-subtext" style="font-size:0.75rem; color:#aaa; margin-bottom:10px;">이름을 입력 후 시작하세요</p>
+                    <input type="text" id="player-name-input" class="name-input" maxlength="10" placeholder="닉네임 입력" autofocus>
+                    <button id="btn-start" class="btn" style="width: 100%;">게임 시작</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 우측 패널: 다음 블록, 명예의 전당 Top 5, 속도, 조작법 -->
+        <div class="panel">
+            <div class="panel-box">
+                <div class="panel-title">NEXT</div>
+                <canvas id="next-canvas" class="preview" width="70" height="70"></canvas>
+            </div>
+            
+            <!-- 리더보드 (명예의 전당 Top 5) -->
+            <div class="panel-box">
+                <div class="panel-title">TOP 5 RANKING</div>
+                <ul id="leaderboard-list" class="leaderboard-list">
+                    <!-- JS로 동적 생성 -->
+                </ul>
+            </div>
+
+            <div class="panel-box">
+                <div class="panel-title">SPEED STEP</div>
+                <div id="disp-speed" class="panel-value">1</div>
+            </div>
+            <div class="panel-box">
+                <div class="panel-title">CONTROLS</div>
+                <div class="controls-hint">
+                    <span>← →</span> : 이동<br>
+                    <span>↑ / X</span> : 회전<br>
+                    <span>↓</span> : 소프트 드롭<br>
+                    <span>Space</span> : 하드 드롭<br>
+                    <span>C / Shift</span> : 홀드<br>
+                    <span>M</span> : 사운드 ON/OFF
+                </div>
+            </div>
+            <button id="btn-sound-toggle" class="btn">🔊 Sound: ON</button>
+        </div>
+    </div>
+
+    <!-- 모바일/터치 대응 버튼 -->
+    <div class="touch-controls">
+        <button class="btn" id="t-hold">HOLD</button>
+        <button class="btn" id="t-rot">ROTATE</button>
+        <button class="btn" id="t-drop">HARD DROP</button>
+        <button class="btn" id="t-left">←</button>
+        <button class="btn" id="t-down">↓</button>
+        <button class="btn" id="t-right">→</button>
+    </div>
+
+<script>
+/**
+ * Web Audio API - 레트로 사운드 효과음 엔진
+ */
+class SoundEngine {
+    constructor() {
+        this.ctx = null;
+        this.enabled = true;
+    }
+
+    init() {
+        if (!this.ctx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AudioCtx();
+        }
+    }
+
+    playTone(freq, duration, type = 'square', gainVal = 0.1) {
+        if (!this.enabled || !this.ctx) return;
+        try {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+            gain.gain.setValueAtTime(gainVal, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start();
+            osc.stop(this.ctx.currentTime + duration);
+        } catch (e) {}
+    }
+
+    playMove() { this.playTone(220, 0.04, 'triangle', 0.05); }
+    playRotate() { this.playTone(440, 0.06, 'sine', 0.08); }
+    playDrop() { this.playTone(150, 0.08, 'sawtooth', 0.1); }
+    playClear() {
+        this.playTone(523.25, 0.08, 'square', 0.1);
+        setTimeout(() => this.playTone(659.25, 0.08, 'square', 0.1), 70);
+        setTimeout(() => this.playTone(783.99, 0.12, 'square', 0.1), 140);
+    }
+    playBomb() {
+        if (!this.enabled || !this.ctx) return;
+        this.playTone(80, 0.25, 'sawtooth', 0.25);
+        this.playTone(60, 0.35, 'square', 0.2);
+    }
+    playGameOver() {
+        this.playTone(300, 0.15, 'sawtooth', 0.15);
+        setTimeout(() => this.playTone(250, 0.15, 'sawtooth', 0.15), 180);
+        setTimeout(() => this.playTone(200, 0.3, 'sawtooth', 0.15), 360);
+    }
+}
+
+const sound = new SoundEngine();
+
+/**
+ * 게임 상수 및 설정
+ */
+const COLS = 10;
+const ROWS = 20;
+const BLOCK_SIZE = 30;
+
+const COLORS = {
+    I: '#00f0ff', J: '#0023ff', L: '#ff7300', O: '#ffeb00', S: '#00ff2b', T: '#a100ff', Z: '#ff0040',
+    P: '#ff00bb', I5: '#00ffff', U: '#00ffaa', B: '#ff2a5f', G: '#555566'
+};
+
+const SHAPES = {
+    I: [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]],
+    J: [[1,0,0],[1,1,1],[0,0,0]],
+    L: [[0,0,1],[1,1,1],[0,0,0]],
+    O: [[1,1],[1,1]],
+    S: [[0,1,1],[1,1,0],[0,0,0]],
+    T: [[0,1,0],[1,1,1],[0,0,0]],
+    Z: [[1,1,0],[0,1,1],[0,0,0]],
+    P: [[0,1,0],[1,1,1],[0,1,0]],
+    I5: [[0,0,0,0,0],[0,0,0,0,0],[1,1,1,1,1],[0,0,0,0,0],[0,0,0,0,0]],
+    U: [[1,0,1],[1,1,1],[0,0,0]]
+};
+
+class Tetris {
+    constructor() {
+        this.canvas = document.getElementById('game-board');
+        this.ctx = this.canvas.getContext('2d');
+        this.holdCanvas = document.getElementById('hold-canvas');
+        this.holdCtx = this.holdCanvas.getContext('2d');
+        this.nextCanvas = document.getElementById('next-canvas');
+        this.nextCtx = this.nextCanvas.getContext('2d');
+
+        this.grid = this.createMatrix(COLS, ROWS);
+        this.score = 0;
+        this.combo = 0;
+        this.playerName = '';
+        this.myHighScore = 0;
+        
+        this.currentPiece = null;
+        this.nextPiece = null;
+        this.holdPiece = null;
+        this.canHold = true;
+
+        this.dropCounter = 0;
+        this.lastTime = 0;
+        this.gameOver = false;
+
+        this.initUI();
+        this.updateLeaderboardUI();
+    }
+
+    createMatrix(w, h) {
+        const matrix = [];
+        while (h--) matrix.push(new Array(w).fill(0));
+        return matrix;
+    }
+
+    initUI() {
+        document.getElementById('btn-start').addEventListener('click', () => this.handleStartBtn());
+        document.getElementById('player-name-input').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') this.handleStartBtn();
+        });
+
+        document.getElementById('btn-sound-toggle').addEventListener('click', () => {
+            sound.enabled = !sound.enabled;
+            document.getElementById('btn-sound-toggle').innerText = `🔊 Sound: ${sound.enabled ? 'ON' : 'OFF'}`;
+        });
+
+        this.bindEvents();
+        this.bindTouch();
+    }
+
+    handleStartBtn() {
+        sound.init();
+        const input = document.getElementById('player-name-input');
+        const name = input.value.trim() || 'Player';
+        this.playerName = name;
+
+        // 개인 최고 점수 불러오기
+        const savedMyScore = localStorage.getItem(`bt_personal_best_${this.playerName}`) || 0;
+        this.myHighScore = parseInt(savedMyScore, 10);
+
+        document.getElementById('disp-player').innerText = this.playerName;
+        document.getElementById('disp-high-score').innerText = this.myHighScore;
+        document.getElementById('name-modal').classList.add('hidden');
+
+        this.resetGame();
+    }
+
+    // 이름 재입력 모달 오픈
+    promptNameAndStart(headingText = "GAME START", subText = "이름을 입력 후 시작하세요") {
+        document.getElementById('modal-heading').innerText = headingText;
+        document.getElementById('modal-subtext').innerText = subText;
+        const input = document.getElementById('player-name-input');
+        input.value = this.playerName || '';
+        document.getElementById('name-modal').classList.remove('hidden');
+        input.focus();
+    }
+
+    resetGame() {
+        this.grid = this.createMatrix(COLS, ROWS);
+        this.score = 0;
+        this.combo = 0;
+        this.gameOver = false;
+        this.holdPiece = null;
+        this.canHold = true;
+
+        this.updateScoreUI();
+        this.nextPiece = this.generateRandomPiece();
+        this.spawnPiece();
+
+        this.lastTime = performance.now();
+        requestAnimationFrame((time) => this.update(time));
+    }
+
+    getDropInterval() {
+        const minInterval = 50;  
+        const maxInterval = 600; 
+        const cappedScore = Math.min(this.score, 10000);
+        return maxInterval - ((maxInterval - minInterval) * (cappedScore / 10000));
+    }
+
+    generateRandomPiece() {
+        const keys = Object.keys(SHAPES);
+        const type = keys[Math.floor(Math.random() * keys.length)];
+        let matrix = SHAPES[type].map(row => [...row]);
+
+        let isBomb = false;
+        if (this.score >= 1000 && Math.random() < 0.20) {
+            isBomb = true;
+        }
+
+        return {
+            type: type,
+            matrix: matrix,
+            pos: { x: Math.floor(COLS / 2) - Math.ceil(matrix[0].length / 2), y: 0 },
+            isBomb: isBomb
+        };
+    }
+
+    spawnPiece() {
+        this.currentPiece = this.nextPiece;
+        this.nextPiece = this.generateRandomPiece();
+        this.canHold = true;
+
+        if (this.collide(this.grid, this.currentPiece)) {
+            this.gameOver = true;
+            sound.playGameOver();
+            this.saveScoreToLeaderboard(this.playerName, this.score);
+            this.updateLeaderboardUI();
+            
+            setTimeout(() => {
+                this.promptNameAndStart("GAME OVER", `최종 점수: ${this.score}점! 다시 도전해보세요.`);
+            }, 600);
+        }
+
+        this.drawPreviews();
+    }
+
+    rotateCurrentPiece() {
+        const piece = this.currentPiece;
+        const matrix = piece.matrix;
+        const rotated = matrix[0].map((_, i) => matrix.map(row => row[i]).reverse());
+        const origMatrix = piece.matrix;
+        const origX = piece.pos.x;
+
+        piece.matrix = rotated;
+
+        let offset = 1;
+        while (this.collide(this.grid, piece)) {
+            piece.pos.x += offset;
+            offset = -(offset + (offset > 0 ? 1 : -1));
+            if (Math.abs(offset) > piece.matrix[0].length) {
+                piece.matrix = origMatrix;
+                piece.pos.x = origX;
+                return;
+            }
+        }
+        sound.playRotate();
+    }
+
+    collide(grid, piece) {
+        const m = piece.matrix;
+        const o = piece.pos;
+        for (let y = 0; y < m.length; ++y) {
+            for (let x = 0; x < m[y].length; ++x) {
+                if (m[y][x] !== 0) {
+                    const boardY = y + o.y;
+                    const boardX = x + o.x;
+                    if (boardX < 0 || boardX >= COLS || boardY >= ROWS) return true;
+                    if (boardY >= 0 && grid[boardY][boardX] !== 0) return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    merge() {
+        this.currentPiece.matrix.forEach((row, y) => {
+            row.forEach((value, x) => {
+                if (value !== 0) {
+                    const boardY = y + this.currentPiece.pos.y;
+                    const boardX = x + this.currentPiece.pos.x;
+                    if (boardY >= 0 && boardY < ROWS) {
+                        this.grid[boardY][boardX] = this.currentPiece.isBomb ? 'B' : this.currentPiece.type;
+                    }
+                }
+            });
+        });
+    }
+
+    drop() {
+        this.currentPiece.pos.y++;
+        if (this.collide(this.grid, this.currentPiece)) {
+            this.currentPiece.pos.y--;
+            this.merge();
+            sound.playDrop();
+            this.clearLines();
+            this.spawnPiece();
+        }
+        this.dropCounter = 0;
+    }
+
+    hardDrop() {
+        while (!this.collide(this.grid, this.currentPiece)) {
+            this.currentPiece.pos.y++;
+        }
+        this.currentPiece.pos.y--;
+        this.merge();
+        sound.playDrop();
+        this.clearLines();
+        this.spawnPiece();
+        this.dropCounter = 0;
+    }
+
+    hold() {
+        if (!this.canHold) return;
+
+        sound.playRotate();
+        if (!this.holdPiece) {
+            this.holdPiece = {
+                type: this.currentPiece.type,
+                matrix: SHAPES[this.currentPiece.type].map(row => [...row]),
+                isBomb: false
+            };
+            this.spawnPiece();
+        } else {
+            const temp = {
+                type: this.currentPiece.type,
+                matrix: SHAPES[this.currentPiece.type].map(row => [...row]),
+                isBomb: false
+            };
+            this.currentPiece = {
+                type: this.holdPiece.type,
+                matrix: SHAPES[this.holdPiece.type].map(row => [...row]),
+                pos: { x: Math.floor(COLS / 2) - Math.ceil(this.holdPiece.matrix[0].length / 2), y: 0 },
+                isBomb: false
+            };
+            this.holdPiece = temp;
+        }
+        this.canHold = false;
+        this.drawPreviews();
+    }
+
+    clearLines() {
+        let linesCleared = 0;
+        let bombTriggered = false;
+
+        outer: for (let y = ROWS - 1; y >= 0; --y) {
+            for (let x = 0; x < COLS; ++x) {
+                if (this.grid[y][x] === 0) continue outer;
+            }
+
+            for (let x = 0; x < COLS; ++x) {
+                if (this.grid[y][x] === 'B') bombTriggered = true;
+            }
+
+            const row = this.grid.splice(y, 1)[0].fill(0);
+            this.grid.unshift(row);
+            linesCleared++;
+            y++;
+        }
+
+        if (linesCleared > 0) {
+            this.combo++;
+            const basePoints = linesCleared * 100;
+            const comboBonus = (this.combo - 1) * 50;
+            this.score += basePoints + comboBonus;
+
+            sound.playClear();
+
+            if (bombTriggered) {
+                sound.playBomb();
+                this.addRandomGarbage(3);
+            }
+
+            this.updateScoreUI();
+        } else {
+            this.combo = 0;
+            document.getElementById('disp-combo').innerText = '0';
+        }
+    }
+
+    addRandomGarbage(count) {
+        let added = 0;
+        let attempts = 0;
+        while (added < count && attempts < 50) {
+            attempts++;
+            const rx = Math.floor(Math.random() * COLS);
+            const ry = ROWS - 1 - Math.floor(Math.random() * 8);
+
+            if (this.grid[ry][rx] === 0) {
+                this.grid[ry][rx] = 'G';
+                added++;
+            }
+        }
+    }
+
+    /* 기록 및 점수 관리 시스템 */
+    updateScoreUI() {
+        document.getElementById('disp-score').innerText = this.score;
+        document.getElementById('disp-combo').innerText = this.combo;
+
+        const speedStep = Math.min(10, Math.floor(this.score / 1000) + 1);
+        document.getElementById('disp-speed').innerText = speedStep;
+
+        // 개인 최고 점수 갱신
+        if (this.score > this.myHighScore) {
+            this.myHighScore = this.score;
+            document.getElementById('disp-high-score').innerText = this.myHighScore;
+            localStorage.setItem(`bt_personal_best_${this.playerName}`, this.myHighScore);
+        }
+    }
+
+    // Top 5 리더보드 저장 기능
+    saveScoreToLeaderboard(name, score) {
+        if (score <= 0) return;
+        let leaderboard = JSON.parse(localStorage.getItem('bt_top5_leaderboard') || '[]');
+        leaderboard.push({ name: name, score: score });
+        leaderboard.sort((a, b) => b.score - a.score);
+        leaderboard = leaderboard.slice(0, 5); // 상위 5명만 유지
+        localStorage.setItem('bt_top5_leaderboard', JSON.stringify(leaderboard));
+    }
+
+    // Top 5 리더보드 화면 렌더링
+    updateLeaderboardUI() {
+        const leaderboardList = document.getElementById('leaderboard-list');
+        const leaderboard = JSON.parse(localStorage.getItem('bt_top5_leaderboard') || '[]');
+
+        if (leaderboard.length === 0) {
+            leaderboardList.innerHTML = '<li style="color:#6c7a89; text-align:center;">기록 없음</li>';
+            return;
+        }
+
+        leaderboardList.innerHTML = leaderboard.map((item, idx) => `
+            <li class="leaderboard-item">
+                <span class="rank-num">${idx + 1}.</span>
+                <span class="rank-name">${this.escapeHtml(item.name)}</span>
+                <span class="rank-score">${item.score}</span>
+            </li>
+        `).join('');
+    }
+
+    escapeHtml(str) {
+        return str.replace(/[&<>"']/g, (m) => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+        })[m]);
+    }
+
+    update(time = 0) {
+        if (this.gameOver) return;
+
+        const deltaTime = time - this.lastTime;
+        this.lastTime = time;
+        this.dropCounter += deltaTime;
+
+        if (this.dropCounter > this.getDropInterval()) {
+            this.drop();
+        }
+
+        this.draw();
+        requestAnimationFrame((t) => this.update(t));
+    }
+
+    draw() {
+        this.ctx.fillStyle = '#05070c';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        this.drawGrid();
+        this.drawMatrix(this.grid, { x: 0, y: 0 });
+        
+        if (this.currentPiece) {
+            this.drawGhostPiece();
+            this.drawPiece(this.currentPiece);
+        }
+    }
+
+    drawGrid() {
+        this.ctx.strokeStyle = '#121829';
+        this.ctx.lineWidth = 1;
+        for (let x = 0; x < COLS; x++) {
+            this.ctx.beginPath();
+            this.ctx.moveTo(x * BLOCK_SIZE, 0);
+            this.ctx.lineTo(x * BLOCK_SIZE, ROWS * BLOCK_SIZE);
+            this.ctx.stroke();
+        }
+        for (let y = 0; y < ROWS; y++) {
+            this.ctx.beginPath();
+            this.ctx.moveTo(0, y * BLOCK_SIZE);
+            this.ctx.lineTo(COLS * BLOCK_SIZE, y * BLOCK_SIZE);
+            this.ctx.stroke();
+        }
+    }
+
+    drawGhostPiece() {
+        const ghost = {
+            matrix: this.currentPiece.matrix,
+            pos: { ...this.currentPiece.pos },
+            isBomb: false
+        };
+
+        while (!this.collide(this.grid, ghost)) {
+            ghost.pos.y++;
+        }
+        ghost.pos.y--;
+
+        this.ctx.globalAlpha = 0.25;
+        ghost.matrix.forEach((row, y) => {
+            row.forEach((value, x) => {
+                if (value !== 0) {
+                    this.drawBlock(this.ctx, ghost.pos.x + x, ghost.pos.y + y, '#ffffff');
+                }
+            });
+        });
+        this.ctx.globalAlpha = 1.0;
+    }
+
+    drawPiece(piece) {
+        piece.matrix.forEach((row, y) => {
+            row.forEach((value, x) => {
+                if (value !== 0) {
+                    const color = piece.isBomb ? COLORS.B : COLORS[piece.type];
+                    this.drawBlock(this.ctx, piece.pos.x + x, piece.pos.y + y, color, piece.isBomb);
+                }
+            });
+        });
+    }
+
+    drawMatrix(matrix, offset) {
+        matrix.forEach((row, y) => {
+            row.forEach((value, x) => {
+                if (value !== 0) {
+                    const color = COLORS[value] || '#ffffff';
+                    this.drawBlock(this.ctx, x + offset.x, y + offset.y, color, value === 'B');
+                }
+            });
+        });
+    }
+
+    drawBlock(ctx, x, y, color, isBomb = false) {
+        const px = x * BLOCK_SIZE;
+        const py = y * BLOCK_SIZE;
+
+        ctx.fillStyle = color;
+        ctx.fillRect(px + 1, py + 1, BLOCK_SIZE - 2, BLOCK_SIZE - 2);
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+        ctx.fillRect(px + 1, py + 1, BLOCK_SIZE - 2, 3);
+        ctx.fillRect(px + 1, py + 1, 3, BLOCK_SIZE - 2);
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.fillRect(px + 1, py + BLOCK_SIZE - 4, BLOCK_SIZE - 2, 3);
+        ctx.fillRect(px + BLOCK_SIZE - 4, py + 1, 3, BLOCK_SIZE - 2);
+
+        if (isBomb) {
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('💣', px + BLOCK_SIZE / 2, py + BLOCK_SIZE / 2);
+        }
+    }
+
+    drawPreviews() {
+        this.holdCtx.fillStyle = '#000';
+        this.holdCtx.fillRect(0, 0, this.holdCanvas.width, this.holdCanvas.height);
+        if (this.holdPiece) {
+            this.drawPreviewMatrix(this.holdCtx, this.holdPiece.matrix, COLORS[this.holdPiece.type]);
+        }
+
+        this.nextCtx.fillStyle = '#000';
+        this.nextCtx.fillRect(0, 0, this.nextCanvas.width, this.nextCanvas.height);
+        if (this.nextPiece) {
+            const color = this.nextPiece.isBomb ? COLORS.B : COLORS[this.nextPiece.type];
+            this.drawPreviewMatrix(this.nextCtx, this.nextPiece.matrix, color, this.nextPiece.isBomb);
+        }
+    }
+
+    drawPreviewMatrix(ctx, matrix, color, isBomb = false) {
+        const size = 14;
+        const offsetX = (70 - matrix[0].length * size) / 2;
+        const offsetY = (70 - matrix.length * size) / 2;
+
+        matrix.forEach((row, y) => {
+            row.forEach((value, x) => {
+                if (value !== 0) {
+                    ctx.fillStyle = color;
+                    ctx.fillRect(offsetX + x * size, offsetY + y * size, size - 1, size - 1);
+                    if (isBomb) {
+                        ctx.fillStyle = '#fff';
+                        ctx.font = '9px sans-serif';
+                        ctx.fillText('💣', offsetX + x * size + 1, offsetY + y * size + 9);
+                    }
+                }
+            });
+        });
+    }
+
+    bindEvents() {
+        document.addEventListener('keydown', (e) => {
+            if (this.gameOver || !this.currentPiece) return;
+
+            switch (e.code) {
+                case 'ArrowLeft':
+                    this.currentPiece.pos.x--;
+                    if (this.collide(this.grid, this.currentPiece)) this.currentPiece.pos.x++;
+                    else sound.playMove();
+                    break;
+                case 'ArrowRight':
+                    this.currentPiece.pos.x++;
+                    if (this.collide(this.grid, this.currentPiece)) this.currentPiece.pos.x--;
+                    else sound.playMove();
+                    break;
+                case 'ArrowDown':
+                    this.drop();
+                    break;
+                case 'ArrowUp':
+                case 'KeyX':
+                    this.rotateCurrentPiece();
+                    break;
+                case 'Space':
+                    e.preventDefault();
+                    this.hardDrop();
+                    break;
+                case 'KeyC':
+                case 'ShiftLeft':
+                case 'ShiftRight':
+                    this.hold();
+                    break;
+                case 'KeyM':
+                    document.getElementById('btn-sound-toggle').click();
+                    break;
+            }
+        });
+    }
+
+    bindTouch() {
+        const addTouch = (id, fn) => {
+            const btn = document.getElementById(id);
+            if (btn) {
+                btn.addEventListener('touchstart', (e) => { e.preventDefault(); fn(); });
+                btn.addEventListener('click', fn);
+            }
+        };
+
+        addTouch('t-left', () => {
+            if (!this.currentPiece) return;
+            this.currentPiece.pos.x--;
+            if (this.collide(this.grid, this.currentPiece)) this.currentPiece.pos.x++;
+            else sound.playMove();
+        });
+
+        addTouch('t-right', () => {
+            if (!this.currentPiece) return;
+            this.currentPiece.pos.x++;
+            if (this.collide(this.grid, this.currentPiece)) this.currentPiece.pos.x--;
+            else sound.playMove();
+        });
+
+        addTouch('t-down', () => this.drop());
+        addTouch('t-rot', () => this.rotateCurrentPiece());
+        addTouch('t-drop', () => this.hardDrop());
+        addTouch('t-hold', () => this.hold());
+    }
+}
+
+window.onload = () => {
+    new Tetris();
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>마녀의 연금술 퍼즐 - 대마스터 에디션</title>
+    <style>
+        body {
+            font-family: 'Malgun Gothic', sans-serif;
+            text-align: center;
+            background: radial-gradient(circle at center, #2b1744 0%, #0d0614 100%);
+            color: #e0d8f0;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+        
+        #bg-particles {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; overflow: hidden; z-index: 0;
+        }
+        .particle {
+            position: absolute; bottom: -20px;
+            background: radial-gradient(circle, rgba(212, 175, 55, 0.8), transparent);
+            border-radius: 50%; pointer-events: none; animation: floatUp infinite linear;
+        }
+        @keyframes floatUp {
+            0% { transform: translateY(0) scale(0); opacity: 0; }
+            20% { opacity: 0.6; transform: translateY(-20vh) scale(1); }
+            80% { opacity: 0.3; transform: translateY(-80vh) scale(0.8); }
+            100% { transform: translateY(-100vh) scale(0); opacity: 0; }
+        }
+
+        h1 { 
+            color: #d4af37; text-shadow: 0 0 15px rgba(212, 175, 55, 0.6);
+            margin-bottom: 2px; font-size: 34px; z-index: 1; position: relative;
+        }
+        p { color: #a593c2; margin-top: 0; line-height: 1.5; z-index: 1; position: relative; }
+        .highlight { color: #39ff14; font-weight: bold; }
+
+        /* 대형 도트 마녀 캐릭터 컨테이너 스타일 */
+        #witch-container {
+            display: flex; align-items: center; justify-content: center; gap: 20px;
+            margin: 10px 0 5px 0; z-index: 2; position: relative;
+        }
+        .witch-avatar-canvas {
+            width: 95px; height: 95px; background: radial-gradient(circle, #4a2c7a 0%, #1e0d38 100%);
+            border: 3px solid #d4af37; border-radius: 50%; display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.6); animation: floatWitch 3s ease-in-out infinite;
+            image-rendering: pixelated; image-rendering: crisp-edges;
+        }
+        @keyframes floatWitch { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+        
+        .witch-dialogue {
+            background: rgba(30, 15, 60, 0.85); border: 2px solid #a593c2; border-radius: 12px;
+            padding: 10px 18px; font-size: 16px; color: #f0ebff; max-width: 340px; text-align: left;
+            box-shadow: 0 0 10px rgba(165, 147, 194, 0.3); position: relative;
+        }
+        .witch-dialogue::after {
+            content: ''; position: absolute; left: -8px; top: 50%; transform: translateY(-50%);
+            border-width: 6px 8px 6px 0; border-style: solid; border-color: transparent rgba(30, 15, 60, 0.85);
+            display: block; width: 0;
+        }
+
+        #title-screen, #game-screen, #records-screen, #guide-screen {
+            width: 100%; display: flex; flex-direction: column; align-items: center; z-index: 1;
+        }
+        #game-screen, #records-screen, #guide-screen { display: none; }
+        #game-screen { padding-top: 10px; padding-bottom: 50px; }
+        
+        #title-screen, #records-screen, #guide-screen { justify-content: center; height: 100vh; }
+        .main-title {
+            font-size: 60px; color: #fff; text-shadow: 0 0 20px #9d00ff, 0 0 40px #ff00ff;
+            margin-bottom: 25px; animation: floatTitle 3s ease-in-out infinite;
+        }
+        @keyframes floatTitle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+        
+        .theme-select-container { margin-bottom: 25px; }
+        #theme-select {
+            padding: 8px 15px; font-size: 16px; border-radius: 8px; border: 2px solid #a593c2;
+            background: rgba(30, 15, 60, 0.9); color: #e0d8f0; font-weight: bold; cursor: pointer;
+            outline: none; transition: all 0.3s;
+        }
+        #theme-select:hover { border-color: #d4af37; box-shadow: 0 0 10px rgba(212, 175, 55, 0.5); }
+
+        .difficulty-btns { display: flex; flex-direction: column; gap: 15px; }
+        .diff-btn {
+            width: 320px; padding: 15px; font-size: 24px; font-weight: bold; color: #fff;
+            background: rgba(30, 15, 60, 0.8); border: 2px solid #a593c2; border-radius: 12px;
+            cursor: pointer; transition: all 0.3s; box-shadow: 0 0 15px rgba(165, 147, 194, 0.3);
+        }
+        .diff-btn:hover {
+            transform: scale(1.05); background: rgba(90, 75, 129, 0.9);
+            box-shadow: 0 0 25px rgba(212, 175, 55, 0.6); border-color: #d4af37;
+        }
+
+        .record-board, .guide-board {
+            background: rgba(30, 15, 60, 0.9); border: 2px solid #d4af37; border-radius: 15px; padding: 40px;
+            font-size: 28px; line-height: 2.5; box-shadow: 0 0 25px rgba(212, 175, 55, 0.4); text-align: left;
+            margin-bottom: 40px;
+        }
+        
+        .guide-board {
+            border-color: #00ffff; box-shadow: 0 0 25px rgba(0, 255, 255, 0.4);
+            font-size: 20px; line-height: 1.7; max-width: 850px; padding: 30px;
+        }
+        .guide-board ul { padding-left: 20px; margin: 0; }
+        .guide-board li { margin-bottom: 12px; }
+
+        #info-panel { display: flex; justify-content: center; align-items: center; gap: 40px; margin: 10px 0; }
+        .info-text { font-size: 26px; font-weight: bold; text-shadow: 0 0 10px rgba(255, 255, 255, 0.3); }
+        #stage-display { color: #00ffff; text-shadow: 0 0 10px rgba(0, 255, 255, 0.6); }
+        .timer-container { display: flex; flex-direction: column; align-items: center; }
+        #timer-display { color: #39ff14; text-shadow: 0 0 10px rgba(57, 255, 20, 0.6); font-family: monospace; font-size: 30px;}
+        #best-time-display { font-size: 15px; color: #ffd700; margin-top: 3px; text-shadow: 0 0 5px rgba(255,215,0,0.5); }
+        
+        #magic-controls { display: flex; justify-content: center; gap: 15px; margin: 10px 0 15px 0; flex-wrap: wrap; }
+        .magic-btn {
+            background: rgba(30, 15, 60, 0.8); border: 2px solid #a593c2; color: #e0d8f0;
+            padding: 10px 20px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer;
+            transition: all 0.2s; box-shadow: 0 0 10px rgba(165, 147, 194, 0.3);
+        }
+        .magic-btn:hover:not(:disabled) { background: rgba(90, 75, 129, 0.8); transform: translateY(-2px); }
+        .magic-btn:disabled { opacity: 0.4; cursor: not-allowed; border-color: #555; }
+
+        #game-board {
+            display: flex; justify-content: center; flex-wrap: wrap; gap: 30px;
+            margin: 40px auto 30px auto; max-width: 900px; position: relative;
+        }
+
+        .shake { animation: shakeBottle 0.4s ease-in-out !important; }
+        @keyframes shakeBottle {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-10px) rotate(-5deg); }
+            40%, 80% { transform: translateX(10px) rotate(5deg); }
+        }
+        
+        .hint-glow { animation: hintGlowAnim 1s ease-in-out 2 !important; border-color: #ffd700 !important; }
+        @keyframes hintGlowAnim {
+            0%, 100% { filter: brightness(1) drop-shadow(0 0 0 transparent); transform: translateY(0); }
+            50% { filter: brightness(1.5) drop-shadow(0 0 20px #ffd700); transform: translateY(-15px); }
+        }
+
+        .bottle {
+            width: 70px; height: 240px;
+            border: 3px solid #5a4b81; border-top: 3px solid transparent;
+            border-bottom-left-radius: 35px; border-bottom-right-radius: 35px;
+            background-color: rgba(30, 15, 60, 0.6);
+            box-shadow: 0 0 15px rgba(90, 75, 129, 0.4), inset 0 0 20px rgba(0,0,0,0.8);
+            display: flex; flex-direction: column-reverse; cursor: pointer; position: relative;
+            z-index: 2; overflow: hidden; -webkit-mask-image: -webkit-radial-gradient(white, black); 
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s, border-color 0.2s, filter 0.3s;
+        }
+        
+        .bottle::after {
+            content: ''; position: absolute; top: 0; left: 10%; width: 15px; height: 100%;
+            background: linear-gradient(to right, rgba(255,255,255,0.2), transparent);
+            pointer-events: none; z-index: 10;
+        }
+        
+        .bottle.selected {
+            transform: translateY(-30px);
+            box-shadow: 0 20px 30px rgba(212, 175, 55, 0.4), 0 0 20px rgba(212, 175, 55, 0.6);
+            border-color: #d4af37;
+        }
+
+        .bottle.sealed { border-color: #333; filter: brightness(0.5) grayscale(0.5); cursor: not-allowed; }
+        .seal-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: none; justify-content: center; align-items: center; z-index: 15;
+            font-size: 36px; text-shadow: 0 0 10px #000;
+        }
+        .bottle.sealed .seal-overlay { display: flex; }
+        
+        .water-slot { 
+            width: 100%; height: 0%; transition: height 0.4s ease-in-out, background-color 0.1s; 
+            position: relative; display: flex; justify-content: center; align-items: center;
+        }
+        .water-slot:first-child { border-bottom-left-radius: 32px; border-bottom-right-radius: 32px; }
+
+        .water-slot.blind {
+            background: repeating-linear-gradient(45deg, #222, #222 10px, #111 10px, #111 20px) !important;
+            box-shadow: inset 0 0 15px #000 !important; border-top: 1px solid #444 !important;
+        }
+        .water-slot.blind::after {
+            content: '?'; color: #8b45a3; font-size: 24px; font-weight: bold; position: absolute;
+            text-shadow: 0 0 5px #ff00ff; animation: pulse 1.5s infinite;
+        }
+
+        .water-slot.frozen {
+            box-shadow: inset 0 0 25px rgba(200, 255, 255, 0.9) !important;
+            background-image: 
+                linear-gradient(135deg, rgba(255,255,255,0.5) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0.5) 75%, transparent 75%, transparent) !important;
+            background-size: 15px 15px !important;
+            border-top: 3px solid #00ffff !important;
+        }
+        .water-slot.frozen::before {
+            content: '🧊'; position: absolute; font-size: 20px; z-index: 4; opacity: 0.9;
+            filter: drop-shadow(0 0 5px #00ffff);
+        }
+
+        .bubbles {
+            background-image: 
+                radial-gradient(circle at 30% 70%, rgba(255,255,255,0.3) 2px, transparent 3px),
+                radial-gradient(circle at 70% 30%, rgba(255,255,255,0.3) 3px, transparent 4px);
+            background-size: 30px 30px; animation: moveBubbles 1.5s linear infinite;
+        }
+        @keyframes moveBubbles { 0% { background-position: 0 30px; } 100% { background-position: 0 0px; } }
+        @keyframes pulse { 0%, 100% { opacity: 0.5; transform: scale(1); } 50% { opacity: 1; transform: scale(1.1); } }
+
+        #stream {
+            position: absolute; width: 14px; height: 0; z-index: 5;
+            border-radius: 7px; transition: height 0.3s ease-in-out, opacity 0.3s; pointer-events: none; opacity: 0;
+        }
+
+        .floating-text {
+            position: absolute; font-size: 24px; font-weight: bold; z-index: 9999;
+            pointer-events: none; transform: translate(-50%, -50%);
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8), 0 0 10px currentColor;
+            animation: floatTextAnim 1.2s ease-out forwards;
+        }
+        @keyframes floatTextAnim {
+            0% { transform: translate(-50%, 0) scale(0.5); opacity: 0; }
+            20% { transform: translate(-50%, -30px) scale(1.2); opacity: 1; }
+            100% { transform: translate(-50%, -80px) scale(1); opacity: 0; }
+        }
+
+        .star {
+            position: absolute; width: 12px; height: 12px; background: currentColor;
+            clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+            animation: sparkleAnim 1s ease-out forwards; pointer-events: none; z-index: 9999; transform: translate(-50%, -50%);
+        }
+        @keyframes sparkleAnim {
+            0% { transform: translate(-50%, -50%) scale(0) rotate(0deg); opacity: 1; }
+            100% { transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(1.5) rotate(180deg); opacity: 0; }
+        }
+
+        #ui-overlay-backdrop {
+            display: none;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.75); z-index: 999;
+        }
+        #ui-overlay { 
+            display: none; 
+            position: fixed; top: 50%; left: 50%; 
+            transform: translate(-50%, -50%);
+            background: rgba(30, 15, 60, 0.95);
+            border: 3px solid #d4af37;
+            padding: 40px; border-radius: 15px;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.9), 0 0 20px rgba(212, 175, 55, 0.5);
+            z-index: 1000;
+            width: 90%; max-width: 500px;
+            animation: popIn 0.3s ease-out forwards;
+        }
+        @keyframes popIn { 
+            0% { opacity: 0; transform: translate(-50%, -40%); } 
+            100% { opacity: 1; transform: translate(-50%, -50%); } 
+        }
+        
+        #ui-message { 
+            font-size: 28px; font-weight: bold; margin-bottom: 30px; 
+            text-shadow: 0 0 15px currentColor;
+            white-space: pre-wrap; line-height: 1.4;
+        }
+        .ui-buttons-container {
+            display: flex; justify-content: center; gap: 15px; flex-wrap: wrap;
+        }
+        .main-btn {
+            padding: 12px 30px; font-size: 20px; font-weight: bold; color: #fff;
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            border: 2px solid #a593c2; border-radius: 8px; cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 0 10px rgba(106, 17, 203, 0.5);
+        }
+        .main-btn:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(106, 17, 203, 0.8); }
+    </style>
+</head>
+<body>
+    <div id="bg-particles"></div>
+
+    <div id="title-screen">
+        <div class="main-title">마녀의 연금술 퍼즐</div>
+        
+        <div class="theme-select-container">
+            <span style="color:#a593c2; font-size: 18px; font-weight:bold;">🎨 시약 컬러 테마: </span>
+            <select id="theme-select" onchange="changeTheme(this.value)">
+                <option value="default">기본 (오리지널)</option>
+                <option value="pastel">파스텔 (부드러운 색감)</option>
+                <option value="high-contrast">고대비 (네온 색상)</option>
+            </select>
+        </div>
+
+        <div class="difficulty-btns">
+            <button class="diff-btn" onclick="startGame('tutorial')" style="border-color: #ff00ff;">수습 마녀 (TUTORIAL)</button>
+            <button class="diff-btn" onclick="startGame('easy')">초급 마녀 (EASY)</button>
+            <button class="diff-btn" onclick="startGame('normal')">정규 연금술사 (NORMAL)</button>
+            <button class="diff-btn" onclick="startGame('hard')" style="color: #ff4500; border-color: #ff4500;">대마스터 (HARD)</button>
+            
+            <div style="display:flex; justify-content:center; gap:15px; margin-top: 15px;">
+                <button class="diff-btn" onclick="showGuide()" style="width: 152px; font-size: 18px; border-color: #00ffff; color: #00ffff; background: rgba(30, 15, 60, 0.5);">📖 플레이 방법</button>
+                <button class="diff-btn" onclick="showRecords()" style="width: 152px; font-size: 18px; border-color: #39ff14; color: #39ff14; background: rgba(30, 15, 60, 0.5);">🏆 기록 확인</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="guide-screen">
+        <div class="main-title" style="font-size: 50px;">마법의 연금술서</div>
+        <div class="guide-board">
+            <ul>
+                <li>🧪 <strong>기본 조제법:</strong> 병을 클릭하여 같은 색의 시약이 위에 있는 다른 병이나 빈 병으로 옮기세요.</li>
+                <li>❓ <strong>블라인드 (물음표):</strong> 색상이 가려져 있습니다. 옮기거나 위의 시약을 치우면 색이 드러납니다. (※ 블라인드 상태여도 4칸이 모두 같은 색이면 껍질이 벗겨지며 완성 인정!)</li>
+                <li>🧊 <strong>얼어붙은 시약:</strong> 직접 옮길 수 없습니다. 얼음 위에 다른 시약을 부어 깨트려야 합니다. (※ 얼어 있어도 한 색상으로 채워지면 완성 인정!)</li>
+                <li>🔒 <strong>봉인된 병:</strong> 지정된 숫자만큼 다른 병들을 먼저 완성하면 봉인이 풀립니다.</li>
+                <li>✨ <strong>도움 마법:</strong> 게임 중 난관에 부딪혔을 때 세 가지 마법을 사용할 수 있습니다.
+                    <ul style="margin-top: 5px;">
+                        <li><strong>💡 마법의 힌트:</strong> 옮길 수 있는 시약병 쌍을 반짝여 보여줍니다. (<span style="color:#ff003f;">+5초</span>)</li>
+                        <li><strong>⏳ 시간 역행:</strong> 직전에 옮긴 시약을 다시 되돌립니다. (<span style="color:#ff003f;">+5초</span>)</li>
+                        <li><strong>🧪 비밀의 시약병:</strong> 빈 시약병을 하나 더 추가합니다. (<span style="color:#ff003f;">+10초</span>)</li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+        <button class="diff-btn" onclick="hideGuide()" style="width:200px; font-size:20px;">돌아가기</button>
+    </div>
+
+    <div id="records-screen">
+        <div class="main-title" style="font-size: 50px;">최고 기록 전당</div>
+        <div class="record-board">
+            <div>수습 마녀 (TUTORIAL): <span id="record-tutorial" class="highlight">--:--</span></div>
+            <div>초급 마녀 (EASY): <span id="record-easy" class="highlight">--:--</span></div>
+            <div>정규 연금술사 (NORMAL): <span id="record-normal" class="highlight">--:--</span></div>
+            <div>대마스터 (HARD): <span id="record-hard" class="highlight">--:--</span></div>
+        </div>
+        <button class="diff-btn" onclick="hideRecords()" style="width:200px; font-size:20px;">돌아가기</button>
+    </div>
+
+    <div id="game-screen">
+        <h1>마녀의 연금술 퍼즐</h1>
+        
+        <!-- 대형 도트풍 마녀 캐릭터 아바타 및 대화창 영역 -->
+        <div id="witch-container">
+            <div class="witch-avatar-canvas">
+                <canvas id="witchCanvas" width="36" height="36" style="width: 78px; height: 78px; image-rendering: pixelated;"></canvas>
+            </div>
+            <div class="witch-dialogue" id="witch-text">"안녕? 나는 수석 연금술사 아리아란다. 오늘도 멋진 포션을 조제해 보자꾸나!"</div>
+        </div>
+
+        <p>
+            <span class="highlight">✨ 스테이지 누적 기록 측정 중</span> | 
+            <span class="highlight">🔒 재시작 패널티:</span> <span style="color:#ff003f; font-weight:bold;">+30초</span>
+        </p>
+        
+        <div id="info-panel">
+            <div class="info-text" id="stage-display">STAGE 1 / 8</div>
+            <div class="timer-container">
+                <div class="info-text" id="timer-display">00:00</div>
+                <div id="best-time-display">🏆 전체 최고 기록: --:--</div>
+            </div>
+        </div>
+
+        <div id="magic-controls">
+            <button id="btn-hint" class="magic-btn" onclick="useHint()">💡 마법의 힌트 (+5초)</button>
+            <button id="btn-undo" class="magic-btn" onclick="useUndo()">⏳ 시간 역행 (+5초)</button>
+            <button id="btn-add-bottle" class="magic-btn" onclick="useExtraBottle()">🧪 비밀의 시약병 (+10초)</button>
+            <button id="btn-restart" class="magic-btn" onclick="restartStage()" style="display: none; border-color: #ff003f; color: #ff003f;">🔄 포션 재조제 (+30초)</button>
+        </div>
+        
+        <div id="game-board"></div>
+        <div id="stream"></div>
+
+        <div id="ui-overlay-backdrop"></div>
+        <div id="ui-overlay">
+            <div id="ui-message"></div>
+            <div class="ui-buttons-container">
+                <button id="ui-btn" class="main-btn" onclick="handleBtnClick()">다음 조제법 연구</button>
+                <button class="main-btn" onclick="returnToTitle()" style="background: #5a4b81;">연구 포기(타이틀로)</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const bgContainer = document.getElementById('bg-particles');
+        for(let i=0; i<40; i++) {
+            let p = document.createElement('div');
+            p.className = 'particle';
+            p.style.left = Math.random() * 100 + 'vw';
+            p.style.width = p.style.height = (Math.random() * 6 + 2) + 'px';
+            p.style.animationDuration = (Math.random() * 10 + 8) + 's';
+            p.style.animationDelay = (Math.random() * 5) + 's';
+            bgContainer.appendChild(p);
+        }
+
+        // 고해상도 상세 도트풍 마녀 캔버스 렌더링 함수 (36x36 그리드)
+        function drawWitchPixelArt(expression = 'normal') {
+            const canvas = document.getElementById('witchCanvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, 36, 36);
+            
+            const P = {
+                skin: '#fcd3c1',
+                skinShadow: '#e2b09a',
+                hair: '#f1f5f9',       // 밝은 백발
+                hairShadow: '#94a3b8', // 백발 음영
+                eye: '#9333ea',        // 신비로운 보라색 눈
+                eyeLight: '#c084fc',
+                cloth: '#3b0764',      // 전통 마녀 로브
+                clothLight: '#6b21a8',
+                clothDark: '#2e1065',
+                hat: '#1e1b4b',        // 어두운 남보라 뾰족 모자
+                hatLight: '#312e81',
+                hatBand: '#d4af37',    // 황금색 벨트 리본
+                buckle: '#fef08a',
+                bottleGlass: '#38bdf8',
+                bottleLiquid: '#ec4899',// 분홍/마젠타 마법 시약
+                wood: '#78350f'
+            };
+
+            // 1. 긴 백발 장발 뒷머리 (풍성하게)
+            ctx.fillStyle = P.hairShadow;
+            ctx.fillRect(8, 16, 20, 14);
+            ctx.fillStyle = P.hair;
+            ctx.fillRect(9, 18, 18, 11);
+
+            // 2. 얼굴 (피부 입체감)
+            ctx.fillStyle = P.skinShadow;
+            ctx.fillRect(11, 14, 14, 11);
+            ctx.fillStyle = P.skin;
+            ctx.fillRect(12, 14, 12, 10);
+
+            // 3. 눈 표현 (표정별 분기: normal, happy, sad)
+            if (expression === 'normal') {
+                ctx.fillStyle = P.eye;
+                ctx.fillRect(14, 17, 2, 3);
+                ctx.fillRect(20, 17, 2, 3);
+                ctx.fillStyle = P.eyeLight;
+                ctx.fillRect(14, 17, 1, 1);
+                ctx.fillRect(20, 17, 1, 1);
+            } else if (expression === 'happy') { // 웃는 눈 (^_^ 모양)
+                ctx.fillStyle = P.eye;
+                ctx.fillRect(13, 17, 3, 1);
+                ctx.fillRect(14, 16, 1, 1);
+                ctx.fillRect(20, 17, 3, 1);
+                ctx.fillRect(21, 16, 1, 1);
+            } else if (expression === 'sad') { // 슬픈 눈 (ㅠㅠ)
+                ctx.fillStyle = '#b91c1c';
+                ctx.fillRect(14, 18, 2, 2);
+                ctx.fillRect(20, 18, 2, 2);
+            }
+
+            // 4. 풍성한 백발 앞머리 및 길게 내려오는 양옆 장발
+            ctx.fillStyle = P.hairShadow;
+            ctx.fillRect(10, 12, 16, 4);
+            ctx.fillStyle = P.hair;
+            ctx.fillRect(10, 13, 16, 3);
+            ctx.fillRect(10, 16, 3, 11); // 왼쪽 긴 장발
+            ctx.fillRect(23, 16, 3, 11); // 오른쪽 긴 장발
+
+            // 5. 전통 마녀 의상 (로브 및 깃 디테일)
+            ctx.fillStyle = P.clothDark;
+            ctx.fillRect(10, 25, 16, 10);
+            ctx.fillStyle = P.cloth;
+            ctx.fillRect(11, 26, 14, 9);
+            ctx.fillStyle = P.clothLight;
+            ctx.fillRect(14, 27, 8, 4);  // 넥카라 포인트
+
+            // 6. 한 손에 들고 있는 디테일한 마법 시약병
+            ctx.fillStyle = P.wood;
+            ctx.fillRect(27, 23, 2, 5);  // 손잡이 팔
+            ctx.fillStyle = P.bottleGlass;
+            ctx.fillRect(25, 20, 6, 8);  // 시약병 몸통
+            ctx.fillStyle = P.bottleLiquid;
+            ctx.fillRect(26, 23, 4, 4);  // 반짝이는 마법 시약 액체
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(26, 21, 1, 2);  // 유리 반사광
+
+            // 7. 정교한 전통 마녀 뾰족 모자
+            ctx.fillStyle = P.hatLight;
+            ctx.fillRect(6, 12, 24, 3);  // 모자 챙
+            ctx.fillStyle = P.hat;
+            ctx.fillRect(10, 6, 16, 7);  // 모자 원뿔 몸통
+            ctx.fillRect(13, 2, 10, 5);  // 모자 중간
+            ctx.fillRect(16, 0, 4, 3);   // 모자 뾰족한 끝 (살짝 꺾인 디테일)
+            
+            // 모자 황금 버클 리본 띠
+            ctx.fillStyle = P.hatBand;
+            ctx.fillRect(10, 11, 16, 2);
+            ctx.fillStyle = P.buckle;
+            ctx.fillRect(16, 11, 4, 2);
+        }
+
+        let audioCtx;
+        const SoundFX = {
+            ambientStarted: false,
+            init: function() {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                this.startAmbient();
+            },
+            playTone: function(freq, type, duration, vol) {
+                if (!audioCtx) return;
+                const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+                osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(); osc.stop(audioCtx.currentTime + duration);
+            },
+            playClick: function() { this.playTone(800, 'sine', 0.1, 0.2); },
+            playDeselect: function() { this.playTone(600, 'sine', 0.1, 0.2); },
+            playError: function() { 
+                this.playTone(150, 'sawtooth', 0.15, 0.3); setTimeout(() => this.playTone(100, 'sawtooth', 0.15, 0.3), 100);
+            },
+            playIceBreak: function() {
+                if (!audioCtx) return;
+                const bufferSize = audioCtx.sampleRate * 0.2; const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0); for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+                const noise = audioCtx.createBufferSource(); noise.buffer = buffer;
+                const filter = audioCtx.createBiquadFilter(); filter.type = 'highpass'; filter.frequency.value = 1500;
+                const gain = audioCtx.createGain(); gain.gain.setValueAtTime(0.8, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                noise.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination); noise.start();
+            },
+            playPour: function() {
+                if (!audioCtx) return;
+                const bufferSize = audioCtx.sampleRate * 0.4; const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0); for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+                const noise = audioCtx.createBufferSource(); noise.buffer = buffer;
+                const filter = audioCtx.createBiquadFilter(); filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(800, audioCtx.currentTime); filter.frequency.linearRampToValueAtTime(1600, audioCtx.currentTime + 0.4);
+                const gain = audioCtx.createGain(); gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+                noise.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination); noise.start();
+            },
+            playSparkle: function() {
+                this.playTone(1046.50, 'sine', 0.3, 0.15); setTimeout(() => this.playTone(1318.51, 'sine', 0.4, 0.15), 100);
+                setTimeout(() => this.playTone(1567.98, 'sine', 0.5, 0.15), 200);
+            },
+            playClear: function() {
+                this.playSparkle(); setTimeout(() => this.playTone(2093.00, 'sine', 0.6, 0.3), 400);
+            },
+            startAmbient: function() {
+                if (!audioCtx || this.ambientStarted) return;
+                this.ambientStarted = true;
+                const bufferSize = audioCtx.sampleRate * 2; const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0); for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+                const noise = audioCtx.createBufferSource(); noise.buffer = buffer; noise.loop = true;
+                const filter = audioCtx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 250;
+                const gain = audioCtx.createGain(); gain.gain.value = 0.05;
+                noise.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination); noise.start();
+            }
+        };
+
+        const THEMES = {
+            'default': [ '#39ff14', '#9d00ff', '#00ffff', '#ff003f', '#ffd700', '#ff00ff', '#4169e1', '#ccff00', '#ff4500', '#ffffff' ],
+            'pastel': [ '#ffb3ba', '#ffdfba', '#ffffba', '#baffc9', '#bae1ff', '#e8baff', '#ffbaff', '#e2f0cb', '#c9c9ff', '#f0e68c' ],
+            'high-contrast': [ '#ff0000', '#00ff00', '#0044ff', '#ffff00', '#ff00ff', '#00ffff', '#ffffff', '#ff8800', '#8800ff', '#00ff88' ]
+        };
+        let COLORS = THEMES['default'];
+        
+        const CAPACITY = 4; 
+        let MAX_STAGE = 8;
+        
+        let difficultyMode = 'normal';
+        let config = { maxUndos: 3, maxExtraBottles: 1, maxHints: 3 };
+        
+        let currentStage = 1;
+        let bottlesData = [];
+        let bottleSeals = []; 
+        let selectedBottleIndex = null;
+        let completedBottles = new Set(); 
+        let moveHistory = [];
+        let currentUndos = 0; let currentExtraBottles = 0; let currentHints = 0;
+        
+        let stopwatchInterval;
+        let globalElapsedTime = 0; 
+        let stageStartGlobalTime = 0; 
+        let currentStageTime = 0; 
+        let isAnimating = false; let isGameOver = false; let isDeadlocked = false;
+
+        // 마녀 아리아의 풍성한 상황별 대사 리스트
+        const witchDialogues = {
+            start: [
+                { text: "안녕? 나는 수석 연금술사 아리아란다. 오늘도 멋진 포션을 조제해 보자꾸나!", expr: "happy" },
+                { text: "새로운 연금술 연구가 시작되었어! 침착하게 색상을 맞춰보렴.", expr: "normal" },
+                { text: "이번 조제실은 어떤 비밀이 숨어있을까? 기대되는걸!", expr: "happy" }
+            ],
+            idle: [
+                { text: "음... 깊은 고민에 빠졌네? 어떤 시약을 먼저 옮길까?", expr: "normal" },
+                { text: "꾸물거리지 말고 얼른 포션을 완성해 봐!", expr: "happy" },
+                { text: "시간이 멈춘 것 같아... 자, 얼른 움직여보자!", expr: "sad" },
+                { text: "혹시 길을 잃었니? '마법의 힌트'를 써보는 것도 방법이야!", expr: "normal" }
+            ],
+            hint: [
+                { text: "반짝이는 곳을 확인해봐! 저기로 옮기면 된단다.", expr: "happy" }
+            ],
+            undo: [
+                { text: "시간을 되돌려 안전한 곳으로 돌아왔어!", expr: "normal" }
+            ],
+            extraBottle: [
+                { text: "비장의 비밀 시약병을 꺼냈어! 여유가 생겼지?", expr: "happy" }
+            ],
+            iceBreak: [
+                { text: "와오! 시약을 부어 단단한 얼음을 깨부쉈어!", expr: "happy" }
+            ],
+            blindClear: [
+                { text: "훌륭해! 블라인드가 벗겨지며 포션이 완성되었어!", expr: "happy" }
+            ],
+            sealLocked: [
+                { text: "아직 봉인이 풀리지 않은 병이야! 다른 병들을 먼저 완성하렴.", expr: "sad" },
+                { text: "자물쇠가 굳게 잠겨 있어. 다른 곳부터 해결해 보자.", expr: "sad" }
+            ],
+            frozenError: [
+                { text: "차가운 얼음으로 덮여있어서 집어 올릴 수가 없어!", expr: "sad" }
+            ],
+            deadlock: [
+                { text: "앗, 길이 막혔구나! 포션을 다시 조제해보자!", expr: "sad" }
+            ],
+            clear: [
+                { text: "환상적이야! 다음 연금술 연구실로 이동해 볼까?", expr: "happy" }
+            ]
+        };
+
+        let lastInteractionTime = Date.now();
+        let idleTriggered = false;
+
+        function resetIdleTimer() {
+            lastInteractionTime = Date.now();
+            idleTriggered = false;
+        }
+
+        function setWitchQuoteCategory(category, customOverrideText = null) {
+            const textElem = document.getElementById('witch-text');
+            if (!textElem) return;
+
+            let selected;
+            if (customOverrideText) {
+                selected = { text: customOverrideText, expr: "normal" };
+            } else {
+                const list = witchDialogues[category] || witchDialogues.start;
+                selected = list[Math.floor(Math.random() * list.length)];
+            }
+
+            textElem.innerText = `"${selected.text}"`;
+            drawWitchPixelArt(selected.expr);
+        }
+
+        const uiElements = {
+            titleScreen: document.getElementById('title-screen'), 
+            gameScreen: document.getElementById('game-screen'),
+            recordsScreen: document.getElementById('records-screen'),
+            guideScreen: document.getElementById('guide-screen'), 
+            board: document.getElementById('game-board'), 
+            stream: document.getElementById('stream'),
+            stageDisplay: document.getElementById('stage-display'), 
+            timerDisplay: document.getElementById('timer-display'),
+            bestTimeDisplay: document.getElementById('best-time-display'), 
+            uiOverlayBackdrop: document.getElementById('ui-overlay-backdrop'),
+            uiOverlay: document.getElementById('ui-overlay'), 
+            uiMessage: document.getElementById('ui-message'),
+            uiBtn: document.getElementById('ui-btn'), 
+            btnHint: document.getElementById('btn-hint'),
+            btnUndo: document.getElementById('btn-undo'),
+            btnAddBottle: document.getElementById('btn-add-bottle'), 
+            btnRestart: document.getElementById('btn-restart')
+        };
+
+        function changeTheme(themeName) {
+            COLORS = THEMES[themeName];
+            SoundFX.init(); SoundFX.playClick();
+        }
+
+        function formatTime(seconds) {
+            let m = Math.floor(seconds / 60); let s = seconds % 60;
+            return `${m < 10 ? '0'+m : m}:${s < 10 ? '0'+s : s}`;
+        }
+        
+        function getBestTimeKey(mode) { return `witch_puzzle_best_run_${mode}`; }          function showRecords() {             SoundFX.init(); SoundFX.playClick();             uiElements.titleScreen.style.display = 'none';             uiElements.recordsScreen.style.display = 'flex';                          document.getElementById('record-tutorial').innerText = formatTimeFromRecord('tutorial');             document.getElementById('record-easy').innerText = formatTimeFromRecord('easy');             document.getElementById('record-normal').innerText = formatTimeFromRecord('normal');             document.getElementById('record-hard').innerText = formatTimeFromRecord('hard');         }          function formatTimeFromRecord(mode) {             let rec = localStorage.getItem(getBestTimeKey(mode));             return rec ? formatTime(parseInt(rec)) : "--:--";         }          function hideRecords() {             SoundFX.playClick();             uiElements.recordsScreen.style.display = 'none';             uiElements.titleScreen.style.display = 'flex';         }          function showGuide() {             SoundFX.init(); SoundFX.playClick();             uiElements.titleScreen.style.display = 'none';             uiElements.guideScreen.style.display = 'flex';         }          function hideGuide() {             SoundFX.playClick();             uiElements.guideScreen.style.display = 'none';             uiElements.titleScreen.style.display = 'flex';         }          function startGame(mode) {             SoundFX.init(); SoundFX.playClick();             difficultyMode = mode;                          if (mode === 'tutorial') {                 config = { maxUndos: 5, maxExtraBottles: 3, maxHints: 5 }; MAX_STAGE = 3;             } else if (mode === 'easy') {                  config = { maxUndos: 5, maxExtraBottles: 2, maxHints: 3 }; MAX_STAGE = 8;             } else if (mode === 'normal') {                  config = { maxUndos: 3, maxExtraBottles: 1, maxHints: 2 }; MAX_STAGE = 8;             } else {                  config = { maxUndos: 2, maxExtraBottles: 1, maxHints: 1 }; MAX_STAGE = 8;             }                          uiElements.titleScreen.style.display = 'none'; uiElements.gameScreen.style.display = 'flex';             initStage(1, false);         }          function returnToTitle() {             SoundFX.playClick(); clearInterval(stopwatchInterval);             uiElements.uiOverlayBackdrop.style.display = 'none';             uiElements.uiOverlay.style.display = 'none';             uiElements.gameScreen.style.display = 'none';              uiElements.titleScreen.style.display = 'flex';         }          function getGimmickCounts(stage) {             let blind = 0, frozen = 0, sealedReq = 0;                          if (difficultyMode === 'tutorial') {                 if (stage === 1) return { blind: 0, frozen: 0, sealedReq: 0 };                 if (stage === 2) return { blind: 2, frozen: 0, sealedReq: 0 };                 if (stage === 3) return { blind: 0, frozen: 1, sealedReq: 1 };             } else if (difficultyMode === 'easy') {                 if (stage >= 5) frozen = 1; if (stage >= 7) blind = 1; if (stage >= 6) sealedReq = 1;             } else if (difficultyMode === 'normal') {                 if (stage >= 4) { frozen = stage - 3; sealedReq = 1; }                 if (stage >= 6) blind = stage - 4;                 if (stage >= 7) sealedReq = 2;             } else {                  if (stage >= 2) frozen = stage - 1;                 if (stage >= 3) sealedReq = 1;                 if (stage >= 4) blind = stage - 3;                 if (stage >= 6) sealedReq = 2;             }             return { blind, frozen: Math.min(frozen, 4), sealedReq };         }          function initStage(stage, isRestart = false) {             currentStage = stage;             isGameOver = false; isAnimating = false; isDeadlocked = false; selectedBottleIndex = null;             completedBottles.clear(); moveHistory = [];              currentUndos = config.maxUndos; currentExtraBottles = config.maxExtraBottles; currentHints = config.maxHints;                          uiElements.uiOverlayBackdrop.style.display = 'none';             uiElements.uiOverlay.style.display = 'none';             if (uiElements.btnRestart) uiElements.btnRestart.style.display = 'none';              uiElements.stageDisplay.innerText = `STAGE ${currentStage} / ${MAX_STAGE}`;             setWitchQuoteCategory('start');             resetIdleTimer();                          let bestTime = localStorage.getItem(getBestTimeKey(difficultyMode));             uiElements.bestTimeDisplay.innerText = `🏆 전체 최고 기록: ${bestTime ? formatTime(bestTime) : "--:--"}`;
+            
+            updateControlsUI();
+
+            const stageMultiplier = Math.min(currentStage, 5);
+            const totalBottles = 4 + (stageMultiplier - 1) * 2;
+            const fullBottles = totalBottles - 2; 
+            const gimmicks = getGimmickCounts(currentStage);
+            
+            generateStageData(totalBottles, fullBottles, gimmicks);
+            createBoardDOM(); updateBoardDOM();
+            
+            clearInterval(stopwatchInterval);
+            
+            if (stage === 1 && !isRestart) {
+                globalElapsedTime = 0; stageStartGlobalTime = 0; currentStageTime = 0;
+            } else if (isRestart) {
+                globalElapsedTime = stageStartGlobalTime + 30;
+                currentStageTime = 30; 
+            } else {
+                stageStartGlobalTime = globalElapsedTime; 
+                currentStageTime = 0;
+            }
+
+            updateTimerDisplay();
+            startStopwatch();
+        }
+
+        function restartStage() {
+            SoundFX.playClick();
+            setWitchQuoteCategory('start', "다시 조제하면 완벽하게 해낼 수 있을 거야!");
+            resetIdleTimer();
+            initStage(currentStage, true);
+        }
+
+        function generateStageData(total, full, gimmicks) {
+            let allColors = [];
+            for (let c = 0; c < full; c++) { for (let i = 0; i < CAPACITY; i++) allColors.push(c); }
+            allColors.sort(() => Math.random() - 0.5);
+
+            bottlesData = []; bottleSeals = Array(total).fill(0);
+            let validTargets = [];
+
+            for (let i = 0; i < total; i++) {
+                let bottle = [];
+                if (i < full) {
+                    for (let j = 0; j < CAPACITY; j++) {
+                        bottle.push({ c: allColors.pop(), b: false, f: false });
+                        validTargets.push({ bIdx: i, sIdx: j });
+                    }
+                }
+                bottlesData.push(bottle);
+            }
+
+            if (gimmicks.sealedReq > 0) bottleSeals[total - 1] = gimmicks.sealedReq;
+
+            validTargets.sort(() => Math.random() - 0.5);
+            let bApplied = 0;
+            for (let target of validTargets) {
+                if (bApplied >= gimmicks.blind) break;
+                if (target.sIdx < CAPACITY - 1) { 
+                    bottlesData[target.bIdx][target.sIdx].b = true; bApplied++;
+                }
+            }
+
+            let colorFrozenCount = {}; let fApplied = 0;
+            for (let target of validTargets) {
+                if (fApplied >= gimmicks.frozen) break;
+                if (target.sIdx < CAPACITY - 1) {
+                    let slot = bottlesData[target.bIdx][target.sIdx];
+                    if (!slot.b && (colorFrozenCount[slot.c] || 0) < 3) {
+                        slot.f = true; colorFrozenCount[slot.c] = (colorFrozenCount[slot.c] || 0) + 1; fApplied++;
+                    }
+                }
+            }
+        }
+
+        function createBoardDOM() {
+            uiElements.board.innerHTML = '';
+            bottlesData.forEach((_, index) => {
+                const bottleDiv = document.createElement('div');
+                bottleDiv.className = 'bottle'; bottleDiv.id = `bottle-${index}`;                 bottleDiv.onclick = () => handleBottleClick(index);                                  const sealDiv = document.createElement('div');                 sealDiv.className = 'seal-overlay';                 sealDiv.innerText = '🔒';                 bottleDiv.appendChild(sealDiv);                  for(let i = 0; i < CAPACITY; i++) {                     const slotDiv = document.createElement('div');                     slotDiv.className = 'water-slot';                     bottleDiv.appendChild(slotDiv);                 }                 uiElements.board.appendChild(bottleDiv);             });         }          function updateBoardDOM() {             bottlesData.forEach((bottle, bIdx) => {                 const bottleDiv = document.getElementById(`bottle-${bIdx}`);
+                const slots = bottleDiv.querySelectorAll('.water-slot');
+                
+                if (bottleSeals[bIdx] > 0) bottleDiv.classList.add('sealed');
+                else bottleDiv.classList.remove('sealed');
+
+                if (selectedBottleIndex === bIdx && !isAnimating) bottleDiv.classList.add('selected');
+                else bottleDiv.classList.remove('selected');
+
+                for(let i = 0; i < CAPACITY; i++) {
+                    const slotData = bottle[i]; const slotDiv = slots[i];
+                    slotDiv.className = 'water-slot';
+                    slotDiv.style.height = '0%'; slotDiv.style.backgroundColor = 'transparent';
+                    slotDiv.style.boxShadow = 'none'; slotDiv.style.borderTop = 'none';
+
+                    if (slotData !== undefined) {
+                        slotDiv.style.height = '25%';
+                        if (slotData.b) {
+                            slotDiv.classList.add('blind');
+                        } else {
+                            const colorHex = COLORS[slotData.c];
+                            slotDiv.style.backgroundColor = colorHex;
+                            slotDiv.style.boxShadow = `inset 0 0 15px ${colorHex}`;                             slotDiv.style.borderTop = '1px solid rgba(255, 255, 255, 0.4)';                             if (slotData.f) slotDiv.classList.add('frozen');                             else slotDiv.classList.add('bubbles');                          }                     }                 }             });         }          function showFloatingText(bottleIdx, text, color) {             const bottleDiv = document.getElementById(`bottle-${bottleIdx}`);
+            const rect = bottleDiv.getBoundingClientRect(); const floatDiv = document.createElement('div');
+            floatDiv.className = 'floating-text'; floatDiv.innerText = text; floatDiv.style.color = color;
+            floatDiv.style.left = (rect.left + rect.width / 2) + 'px'; floatDiv.style.top = (rect.top - 20) + 'px';
+            document.body.appendChild(floatDiv); setTimeout(() => floatDiv.remove(), 1200);
+        }
+
+        function updateControlsUI() {
+            uiElements.btnHint.innerText = `💡 마법의 힌트 (${currentHints}/${config.maxHints}) +5초`;
+            uiElements.btnHint.disabled = (currentHints <= 0 || isAnimating);
+            uiElements.btnUndo.innerText = `⏳ 시간 역행 (${currentUndos}/${config.maxUndos}) +5초`;
+            uiElements.btnUndo.disabled = (currentUndos <= 0 || moveHistory.length === 0 || isAnimating);
+            uiElements.btnAddBottle.innerText = `🧪 비밀의 시약병 (${currentExtraBottles}/${config.maxExtraBottles}) +10초`;
+            uiElements.btnAddBottle.disabled = (currentExtraBottles <= 0 || isAnimating);
+        }
+
+        function saveHistory() {
+            moveHistory.push({
+                bottles: JSON.parse(JSON.stringify(bottlesData)),
+                seals: [...bottleSeals]
+            });
+        }
+
+        function findValidHintMove() {
+            for(let s = 0; s < bottlesData.length; s++) {
+                if(bottleSeals[s] > 0 || bottlesData[s].length === 0) continue;
+                
+                let topSrc = bottlesData[s][bottlesData[s].length - 1];
+                if(topSrc.f) continue;
+                
+                let isSrcAllOneColor = bottlesData[s].every(x => x.c === bottlesData[s][0].c && !x.b);
+                
+                for(let d = 0; d < bottlesData.length; d++) {
+                    if(s === d || bottleSeals[d] > 0 || bottlesData[d].length === CAPACITY) continue;
+                    
+                    let topDest = bottlesData[d].length > 0 ? bottlesData[d][bottlesData[d].length - 1] : null;
+                    
+                    if(!topDest) {
+                        if(!isSrcAllOneColor) return [s, d];
+                    } else if (topDest.c === topSrc.c) {
+                        return [s, d];
+                    }
+                }
+            }
+            return null;
+        }
+
+        function showDeadlockOverlay() {
+            isGameOver = true;
+            isDeadlocked = true;
+            clearInterval(stopwatchInterval);
+            
+            if (uiElements.btnRestart) uiElements.btnRestart.style.display = 'inline-block';
+            
+            setWitchQuoteCategory('deadlock');
+            uiElements.uiOverlayBackdrop.style.display = 'block';
+            uiElements.uiOverlay.style.display = 'block';
+            uiElements.uiMessage.innerText = `⚠️ 더 이상 진행할 수 있는 조제가 없습니다!\n포션을 다시 조제하시겠습니까?`;
+            uiElements.uiMessage.style.color = '#ff003f';
+            uiElements.uiBtn.innerText = "포션 즉시 재조제";
+        }
+
+        function useHint() {
+            if (isAnimating || isGameOver || currentHints <= 0) return;
+            resetIdleTimer();
+            
+            let hintMove = findValidHintMove();
+            if(!hintMove) {
+                SoundFX.playError();
+                showDeadlockOverlay();
+                return;
+            }
+
+            SoundFX.playSparkle();
+            currentHints--;
+            globalElapsedTime += 5;
+            currentStageTime += 5;
+            updateTimerDisplay();
+            
+            setWitchQuoteCategory('hint');
+            showFloatingText(hintMove[0], "💡 힌트 사용 (+5초)", "#ffd700");
+
+            const srcDiv = document.getElementById(`bottle-${hintMove[0]}`);             const destDiv = document.getElementById(`bottle-${hintMove[1]}`);
+            
+            srcDiv.classList.add('hint-glow');
+            destDiv.classList.add('hint-glow');
+            
+            setTimeout(() => {
+                srcDiv.classList.remove('hint-glow');
+                destDiv.classList.remove('hint-glow');
+            }, 2000);
+
+            updateControlsUI();
+        }
+
+        function useUndo() {
+            if (isAnimating || isGameOver || moveHistory.length === 0 || currentUndos <= 0) return;
+            resetIdleTimer();
+            SoundFX.playDeselect(); currentUndos--;
+            globalElapsedTime += 5; currentStageTime += 5; updateTimerDisplay();
+            setWitchQuoteCategory('undo');
+            showFloatingText(0, "시간 역행 (+5초)", "#ff003f"); 
+            
+            const state = moveHistory.pop();
+            bottlesData = state.bottles; bottleSeals = state.seals;
+            selectedBottleIndex = null;
+            recalcCompletedBottles(); updateBoardDOM(); updateControlsUI();
+        }
+
+        function useExtraBottle() {
+            if (isAnimating || isGameOver || currentExtraBottles <= 0) return;
+            resetIdleTimer();
+            SoundFX.playSparkle(); currentExtraBottles--;
+            globalElapsedTime += 10; currentStageTime += 10; updateTimerDisplay();
+            setWitchQuoteCategory('extraBottle');
+            showFloatingText(bottlesData.length - 1, "시약병 추가 (+10초)", "#ff003f");
+            
+            saveHistory();
+            bottlesData.push([]); bottleSeals.push(0);
+            createBoardDOM(); updateBoardDOM(); updateControlsUI();
+        }
+
+        function recalcCompletedBottles() {
+            completedBottles.clear();
+            bottlesData.forEach((bottle, idx) => {
+                if (bottle.length === CAPACITY && bottle.every(s => s.c === bottle[0].c)) {
+                    completedBottles.add(idx);
+                }
+            });
+        }
+
+        function handleBottleClick(clickedIndex) {
+            if (isGameOver || isAnimating) return; 
+            resetIdleTimer();
+
+            if (bottleSeals[clickedIndex] > 0) {
+                SoundFX.playError();
+                setWitchQuoteCategory('sealLocked');
+                showFloatingText(clickedIndex, `🔒 병 ${bottleSeals[clickedIndex]}개 완성 필요!`, "#ff4500");                 return;             }              if (selectedBottleIndex === null) {                 if (bottlesData[clickedIndex].length > 0) {                     const topSrc = bottlesData[clickedIndex][bottlesData[clickedIndex].length - 1];                     if (topSrc.f) {                         SoundFX.playError();                          setWitchQuoteCategory('frozenError');                         showFloatingText(clickedIndex, "🧊 얼어있음!", "#00ffff");                         const clickedBottleDiv = document.getElementById(`bottle-${clickedIndex}`);
+                        clickedBottleDiv.classList.add('shake');
+                        setTimeout(() => clickedBottleDiv.classList.remove('shake'), 400);
+                        return;
+                    }
+                    SoundFX.playClick(); selectedBottleIndex = clickedIndex; updateBoardDOM();
+                }
+            } else {
+                if (selectedBottleIndex === clickedIndex) {
+                    SoundFX.playDeselect(); selectedBottleIndex = null; updateBoardDOM();
+                } else {
+                    const srcBottle = bottlesData[selectedBottleIndex];
+                    const destBottle = bottlesData[clickedIndex];
+
+                    if (srcBottle.length > 0 && destBottle.length < CAPACITY) {
+                        const topSrc = srcBottle[srcBottle.length - 1];
+                        const topDest = destBottle.length > 0 ? destBottle[destBottle.length - 1] : null;
+
+                        if (!topDest || topDest.c === topSrc.c) {
+                            playPourAnimation(selectedBottleIndex, clickedIndex);
+                        } else {
+                            SoundFX.playError(); selectedBottleIndex = null; updateBoardDOM();
+                        }
+                    } else {
+                        SoundFX.playDeselect(); selectedBottleIndex = null; updateBoardDOM();
+                    }
+                }
+            }
+        }
+
+        function playPourAnimation(srcIdx, destIdx) {
+            isAnimating = true; SoundFX.playPour();
+            saveHistory(); updateControlsUI();
+
+            const srcBottle = bottlesData[srcIdx];
+            const destBottle = bottlesData[destIdx];
+            let topColor = srcBottle[srcBottle.length - 1].c;
+            let destAvailable = CAPACITY - destBottle.length;
+            
+            let moveCount = 0;
+            for(let i = srcBottle.length - 1; i >= 0; i--) {
+                if (srcBottle[i].c === topColor && !srcBottle[i].f) {
+                    moveCount++;
+                    if (srcBottle[i].b) break;
+                } else {
+                    break;
+                }
+            }
+            moveCount = Math.min(moveCount, destAvailable);
+
+            const srcDiv = document.getElementById(`bottle-${srcIdx}`);              const destDiv = document.getElementById(`bottle-${destIdx}`);
+            srcDiv.classList.remove('selected');
+            const srcRect = srcDiv.getBoundingClientRect(); const destRect = destDiv.getBoundingClientRect();
+            const isPouringRight = destRect.left >= srcRect.left;
+            
+            let dx, dy, angle, transformOrigin;
+            let destPivotX = destRect.left + (destRect.width / 2); let destPivotY = destRect.top - 120; 
+
+            if (isPouringRight) { angle = 85; transformOrigin = '100% 10%'; dx = destPivotX - srcRect.right; } 
+            else { angle = -85; transformOrigin = '0% 10%'; dx = destPivotX - srcRect.left; }
+            dy = destPivotY - (srcRect.top + (srcRect.height * 0.1));
+
+            srcDiv.style.zIndex = 10; srcDiv.style.transformOrigin = transformOrigin;
+            srcDiv.style.transform = `translate(${dx}px,${dy}px) rotate(${angle}deg)`;              setTimeout(() => {                 for (let m = 0; m < moveCount; m++) {                     bottlesData[destIdx].push(bottlesData[srcIdx].pop());                 }                 if (bottlesData[srcIdx].length > 0) bottlesData[srcIdx][bottlesData[srcIdx].length - 1].b = false;                                   updateBoardDOM();                   const colorHex = COLORS[topColor];                 uiElements.stream.style.backgroundColor = colorHex; uiElements.stream.style.boxShadow = `0 0 15px ${colorHex}`; 
+                uiElements.stream.style.left = `${destPivotX - 7}px`; uiElements.stream.style.top = `${destPivotY + 10}px`;
+                uiElements.stream.style.height = '140px'; uiElements.stream.style.opacity = '1';
+
+                setTimeout(() => {
+                    uiElements.stream.style.height = '0'; uiElements.stream.style.opacity = '0';
+                    srcDiv.style.transform = `translate(0px, 0px) rotate(0deg)`;
+                    
+                    const targetBottle = bottlesData[destIdx];
+                    if (targetBottle.length > moveCount) {
+                        const newlyCovered = targetBottle[targetBottle.length - moveCount - 1];
+                        if (newlyCovered.f) {
+                            newlyCovered.f = false; SoundFX.playIceBreak();
+                            setWitchQuoteCategory('iceBreak');
+                            showFloatingText(destIdx, "🧊 얼음 파괴!", "#00ffff");
+                        }
+                    }
+
+                    setTimeout(() => {
+                        srcDiv.style.zIndex = 2; srcDiv.style.transformOrigin = ''; srcDiv.style.transform = ''; 
+                        selectedBottleIndex = null; isAnimating = false;
+                        
+                        if (targetBottle.length === CAPACITY && !completedBottles.has(destIdx)) {
+                            const firstColor = targetBottle[0].c;
+                            if (targetBottle.every(s => s.c === firstColor)) {
+                                targetBottle.forEach(s => { s.b = false; s.f = false; });
+                                completedBottles.add(destIdx);
+                                
+                                globalElapsedTime = Math.max(0, globalElapsedTime - 2);
+                                currentStageTime = Math.max(0, currentStageTime - 2);
+                                updateTimerDisplay();
+
+                                const rect = destDiv.getBoundingClientRect();
+                                createSparkles(rect.left + rect.width/2, rect.top + rect.height/2, 30, COLORS[firstColor]);
+                                
+                                const hasBlindOrIce = targetBottle.some(s => s.b || s.f);
+                                if (hasBlindOrIce) {
+                                    setWitchQuoteCategory('blindClear');
+                                } else {
+                                    setWitchQuoteCategory('start', "훌륭해! 포션 병 하나가 멋지게 완성되었어!");
+                                }
+
+                                showFloatingText(destIdx, "✨ 완성 (-2초)", "#39ff14");
+                                SoundFX.playSparkle();
+
+                                for (let i = 0; i < bottleSeals.length; i++) {
+                                    if (bottleSeals[i] > 0 && completedBottles.size >= bottleSeals[i]) {
+                                        bottleSeals[i] = 0; 
+                                        SoundFX.playIceBreak();
+                                        setWitchQuoteCategory('start', "자물쇠의 봉인이 해제되었단다!");
+                                        showFloatingText(i, "🔓 봉인 해제!", "#ffd700");
+                                    }
+                                }
+                            }
+                        }
+
+                        updateBoardDOM(); updateControlsUI();
+                        checkWin(); 
+                    }, 300); 
+                }, 350); 
+            }, 350); 
+        }
+
+        function createSparkles(x, y, count, color) {
+            for(let i = 0; i < count; i++) {
+                const star = document.createElement('div'); star.className = 'star';
+                star.style.left = x + 'px'; star.style.top = y + 'px';
+                star.style.color = color; star.style.boxShadow = `0 0 10px ${color}`;                 const tx = (Math.random() - 0.5) * 200; const ty = (Math.random() - 0.5) * 200 - 50;                 star.style.setProperty('--tx', tx + 'px'); star.style.setProperty('--ty', ty + 'px');                 document.body.appendChild(star); setTimeout(() => star.remove(), 1000);             }         }          function playClearEffect() {             SoundFX.playClear();             bottlesData.forEach((bottle, idx) => {                 if (bottle.length === CAPACITY) {                     const div = document.getElementById(`bottle-${idx}`); const rect = div.getBoundingClientRect();
+                    setTimeout(() => { createSparkles(rect.left + rect.width / 2, rect.top + rect.height / 2, 40, COLORS[bottle[0].c]); }, Math.random() * 600);
+                }
+            });
+        }
+
+        function startStopwatch() { 
+            stopwatchInterval = setInterval(() => { 
+                globalElapsedTime++; 
+                currentStageTime++;
+                updateTimerDisplay(); 
+                
+                // 방치 체크 (10초 이상 미조작 시 대사 출력)
+                if (!isGameOver && !isAnimating) {
+                    if (Date.now() - lastInteractionTime > 10000 && !idleTriggered) {
+                        idleTriggered = true;
+                        setWitchQuoteCategory('idle');
+                    }
+                }
+
+                if (currentStageTime >= 120 && uiElements.btnRestart) {
+                    uiElements.btnRestart.style.display = 'inline-block';
+                }
+            }, 1000); 
+        }
+        
+        function updateTimerDisplay() { 
+            uiElements.timerDisplay.innerText = formatTime(globalElapsedTime); 
+        }
+
+        function checkWin() {
+            let isWin = true;
+            for (let i = 0; i < bottlesData.length; i++) {
+                const bottle = bottlesData[i];
+                if (bottle.length > 0) {
+                    if (bottle.length !== CAPACITY) { isWin = false; break; }
+                    const firstColor = bottle[0].c;
+                    for (let j = 1; j < bottle.length; j++) {
+                        if (bottle[j].c !== firstColor) { isWin = false; break; }
+                    }
+                }
+            }
+
+            if (isWin) {
+                clearInterval(stopwatchInterval); isGameOver = true;
+                playClearEffect(); 
+                
+                let isNewBest = false;
+                
+                if (currentStage === MAX_STAGE) {
+                    let bestKey = getBestTimeKey(difficultyMode);
+                    let currentBest = localStorage.getItem(bestKey);
+                    if (!currentBest || globalElapsedTime < parseInt(currentBest)) {
+                        localStorage.setItem(bestKey, globalElapsedTime);
+                        isNewBest = true;
+                    }
+                }
+
+                setTimeout(() => showUI(true, isNewBest), 1500); 
+            }
+        }
+
+        function showUI(isSuccess, isNewBest) {
+            uiElements.uiOverlayBackdrop.style.display = 'block';
+            uiElements.uiOverlay.style.display = 'block';
+            let timeStr = formatTime(globalElapsedTime);
+            let bestText = isNewBest ? ` (✨NEW BEST!)` : ``;
+
+            if (isSuccess) {
+                if (currentStage < MAX_STAGE) {
+                    setWitchQuoteCategory('clear');
+                    uiElements.uiMessage.innerText = `🎉 STAGE ${currentStage} 클리어! 🎉\n현재 누적 시간: ${timeStr}`;
+                    uiElements.uiMessage.style.color = '#39ff14';
+                    uiElements.uiBtn.innerText = "다음 조제법 연구";
+                } else {
+                    let clearTitle = difficultyMode === 'tutorial' ? "수습 마녀 과정 수료!" : "🏆 대마스터 연금술사 달성! 🏆";
+                    setWitchQuoteCategory('clear', "와아 정말 대단해! 너는 진정한 대마스터 연금술사야!");
+                    uiElements.uiMessage.innerText = `${clearTitle}\n최종 기록 (1~${MAX_STAGE}스테이지): ${timeStr}${bestText}`;
+                    uiElements.uiMessage.style.color = '#ffd700';
+                    uiElements.uiBtn.innerText = "처음부터 다시 도전";
+                }
+            }
+        }
+
+        function handleBtnKindClick() {
+            SoundFX.playClick();
+            if (isDeadlocked) {
+                isDeadlocked = false;
+                restartStage();
+                return;
+            }
+            if (currentStage < MAX_STAGE) initStage(currentStage + 1, false);
+            else initStage(1, false);
+        }
+        
+        function handleBtnClick() {
+            handleBtnKindClick();
+        }
+    </script>
+</body>
+</html>

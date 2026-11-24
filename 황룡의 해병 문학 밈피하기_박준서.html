@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>황룡의 해병문학 밈 피하기 - 판정 정밀화 & 50초 Edition</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; overflow: hidden;
+            background-color: #050202;
+            font-family: 'Malgun Gothic', sans-serif;
+            user-select: none;
+            display: flex; justify-content: center; align-items: center;
+            width: 100vw; height: 100vh;
+        }
+
+        #game-container {
+            position: relative;
+            width: 600px; height: 780px;
+            background: #140303;
+            border: 4px solid #dc2626;
+            box-shadow: 0 0 35px rgba(220, 38, 38, 0.7);
+            overflow: hidden;
+        }
+
+        #hud {
+            position: absolute; top: 0; left: 0; width: 100%;
+            padding: 12px 20px; box-sizing: border-box;
+            display: flex; justify-content: space-between; align-items: center;
+            background: linear-gradient(180deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 100%);
+            z-index: 10; color: #fff; font-weight: bold; font-size: 16px;
+            text-shadow: 2px 2px 4px #000;
+        }
+        .hud-val { color: #fde047; font-size: 20px; }
+
+        #danger-badge {
+            position: absolute; top: 130px; left: 50%; transform: translateX(-50%);
+            padding: 5px 15px; background: rgba(220, 38, 38, 0.9);
+            border: 2px solid #fde047; border-radius: 20px;
+            color: #fff; font-size: 13px; font-weight: 900; z-index: 10;
+            display: none; box-shadow: 0 0 15px #dc2626;
+            animation: pulse 0.4s infinite alternate;
+        }
+
+        @keyframes pulse {
+            from { transform: translateX(-50%) scale(0.95); }
+            to { transform: translateX(-50%) scale(1.08); }
+        }
+
+        canvas { display: block; width: 100%; height: 100%; }
+
+        .overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(10, 2, 2, 0.94);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            color: #ef4444; z-index: 100; text-align: center; padding: 25px; box-sizing: border-box;
+        }
+        .title {
+            font-size: 28px; font-weight: 900; color: #fbbf24;
+            text-shadow: 0 0 15px #dc2626, 3px 3px 0px #000;
+            margin-bottom: 8px; line-height: 1.3;
+        }
+        .sub-title { color: #fca5a5; font-size: 13px; margin-bottom: 12px; line-height: 1.5; }
+        
+        .input-group {
+            margin-bottom: 12px; width: 85%; display: flex; flex-direction: column; align-items: center; gap: 4px;
+        }
+        .input-label { color: #fde047; font-size: 13px; font-weight: bold; }
+        .name-input {
+            width: 80%; padding: 8px; border: 2px solid #dc2626; background: #000; color: #fff;
+            text-align: center; font-size: 16px; font-weight: bold; border-radius: 6px; outline: none;
+        }
+        .name-input:focus { border-color: #fbbf24; box-shadow: 0 0 10px #fbbf24; }
+
+        .diff-select-group {
+            display: flex; gap: 10px; margin-bottom: 12px; width: 85%;
+        }
+        .btn-diff {
+            flex: 1; padding: 8px 0; font-size: 13px; font-weight: bold;
+            background: #1e293b; color: #94a3b8; border: 2px solid #475569;
+            border-radius: 6px; cursor: pointer; transition: all 0.2s;
+        }
+        .btn-diff.selected {
+            background: #dc2626; color: #fff; border-color: #fbbf24;
+            box-shadow: 0 0 10px rgba(220, 38, 38, 0.8);
+        }
+
+        .btn-group { display: flex; gap: 10px; margin-top: 5px; }
+
+        .btn-start {
+            padding: 10px 30px; font-size: 18px; font-weight: bold;
+            background: linear-gradient(180deg, #dc2626 0%, #450a0a 100%);
+            color: #fff; border: 2px solid #fbbf24; border-radius: 8px; cursor: pointer;
+            box-shadow: 0 0 15px rgba(220, 38, 38, 0.8); transition: transform 0.1s;
+        }
+        .btn-start:hover { transform: scale(1.05); }
+
+        .btn-records {
+            padding: 10px 20px; font-size: 15px; font-weight: bold;
+            background: #1e293b; color: #fbbf24; border: 2px solid #fbbf24; border-radius: 8px; cursor: pointer;
+        }
+        .btn-records:hover { background: #334155; }
+
+        .controls-card {
+            background: rgba(30, 10, 10, 0.85);
+            border: 2px solid #991b1b; border-radius: 12px;
+            padding: 10px 18px; width: 85%; margin-bottom: 12px;
+        }
+        .controls-title {
+            color: #fbbf24; font-size: 13px; font-weight: bold; margin-bottom: 6px;
+            border-bottom: 1px solid #7f1d1d; padding-bottom: 4px;
+        }
+        .control-row {
+            display: flex; justify-content: space-between; align-items: center;
+            margin: 4px 0; font-size: 12px; color: #e2e8f0;
+        }
+        .key-badge {
+            background: #334155; color: #fde047; border: 1px solid #64748b;
+            padding: 2px 6px; border-radius: 4px; font-weight: bold; font-family: monospace;
+        }
+
+        #intro-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, #300000 0%, #000 90%);
+            z-index: 200; display: none;
+            flex-direction: column; justify-content: center; align-items: center;
+            color: #ef4444; font-weight: 900; text-align: center;
+            padding: 20px; box-sizing: border-box;
+        }
+
+        .btn-skip {
+            position: absolute; top: 20px; right: 20px;
+            padding: 8px 16px; background: rgba(220, 38, 38, 0.8);
+            border: 2px solid #fde047; color: #fff; font-weight: bold;
+            border-radius: 20px; cursor: pointer; z-index: 210; font-size: 13px;
+        }
+        .btn-skip:hover { background: #ef4444; }
+        
+        .intro-boss-box {
+            position: relative; width: 180px; height: 180px; margin-bottom: 20px;
+        }
+
+        .intro-img-canvas {
+            width: 180px; height: 180px; border-radius: 50%;
+            border: 4px solid #dc2626; box-shadow: 0 0 35px #dc2626;
+            animation: bossFloat 1.2s infinite alternate ease-in-out; background: #111;
+        }
+
+        @keyframes bossFloat {
+            0% { transform: translateY(0px) scale(1); }
+            100% { transform: translateY(-10px) scale(1.05); }
+        }
+
+        .dialog-box {
+            background: rgba(15, 5, 5, 0.9); border: 3px solid #dc2626; border-radius: 12px;
+            padding: 15px; width: 85%; min-height: 90px;
+            box-shadow: 0 0 20px rgba(220, 38, 38, 0.5);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+        }
+
+        .intro-speaker { color: #fbbf24; font-size: 15px; margin-bottom: 6px; font-weight: bold; }
+        .intro-text { font-size: 20px; color: #fff; text-shadow: 0 0 10px #dc2626; line-height: 1.4; word-break: keep-all; }
+
+        .shake-effect { animation: screenShake 0.15s infinite; }
+        @keyframes screenShake {
+            0% { transform: translate(3px, 3px); }
+            25% { transform: translate(-3px, -2px); }
+            50% { transform: translate(2px, -3px); }
+            75% { transform: translate(-2px, 3px); }
+            100% { transform: translate(0, 0); }
+        }
+
+        #records-modal {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(5, 2, 2, 0.95); z-index: 300; display: none;
+            flex-direction: column; justify-content: center; align-items: center;
+            padding: 20px; box-sizing: border-box;
+        }
+        .records-table {
+            width: 90%; max-height: 350px; overflow-y: auto; border-collapse: collapse;
+            margin: 15px 0; color: #fff; font-size: 14px;
+        }
+        .records-table th, .records-table td {
+            border: 1px solid #7f1d1d; padding: 8px; text-align: center;
+        }
+        .records-table th { background: #450a0a; color: #fbbf24; }
+        .records-table tr:nth-child(even) { background: rgba(30, 10, 10, 0.5); }
+
+        #clear-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(10, 2, 2, 0.95); z-index: 250; display: none;
+            flex-direction: column; justify-content: center; align-items: center;
+            padding: 20px; box-sizing: border-box; text-align: center;
+        }
+        .jail-box {
+            position: relative; width: 160px; height: 160px; margin: 15px 0;
+            border: 6px solid #475569; background: #000; border-radius: 8px; overflow: hidden;
+        }
+        .jail-bars {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: repeating-linear-gradient(90deg, transparent, transparent 18px, #94a3b8 18px, #64748b 26px);
+            z-index: 2; pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="hud">
+        <div>버틴 시간: <span id="val-time" class="hud-val">0.0</span> / 50.0초</div>
+        <div>구르기: <span id="val-dash" class="hud-val" style="color:#4ade80;">READY</span></div>
+    </div>
+    
+    <div id="danger-badge">🚨 DANGER: 폭주 상태!</div>
+
+    <canvas id="gameCanvas" width="600" height="780"></canvas>
+
+    <div id="intro-overlay">
+        <button class="btn-skip" onclick="skipIntro()">시나리오 건너뛰기 ⏩</button>
+        <div class="intro-boss-box">
+            <canvas id="introBossCanvas" class="intro-img-canvas" width="160" height="160"></canvas>
+        </div>
+        <div class="dialog-box">
+            <div id="intro-speaker" class="intro-speaker">황근출 해병님</div>
+            <div id="intro-msg" class="intro-text">...</div>
+        </div>
+    </div>
+
+    <div id="screen-start" class="overlay">
+        <div class="title">황룡의<br>해병문학 밈 피하기</div>
+        <div class="sub-title">"정밀 판정 & 50초 생존 Edition"</div>
+
+        <div class="input-group">
+            <span class="input-label">🎖️ 전역 희망자 이름(닉네임) 입력</span>
+            <input type="text" id="player-name" class="name-input" maxlength="8" value="황룡">
+        </div>
+
+        <div class="diff-select-group">
+            <button class="btn-diff selected" onclick="selectDifficulty('easy', this)">아기해병<br>(EASY)</button>
+            <button class="btn-diff" onclick="selectDifficulty('normal', this)">오도해병<br>(NORMAL)</button>
+            <button class="btn-diff" onclick="selectDifficulty('hard', this)">해병지옥<br>(HARD)</button>
+        </div>
+
+        <div class="controls-card">
+            <div class="controls-title">🎮 조작법 & 주요 시스템</div>
+            <div class="control-row"><span>좌우 이동</span><span class="key-badge">A, D / 방향키 (←, →)</span></div>
+            <div class="control-row"><span>무적 회피(구르기)</span><span class="key-badge">SPACE / Touch</span></div>
+            <div class="control-row"><span>처음 창으로 (메인)</span><span class="key-badge">ESC</span></div>
+            <div class="control-row" style="margin-top:4px; border-top:1px dashed #555; padding-top:4px;">
+                <span style="color:#fde047; font-weight:bold;">✨ 50초 완주 시 황근출 영창 감금 & 성대한 전역식!</span>
+            </div>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn-start" onclick="triggerIntro()">게임 시작</button>
+            <button class="btn-records" onclick="showRecords()">명예의 전당 🏆</button>
+        </div>
+    </div>
+
+    <div id="screen-over" class="overlay" style="display: none;">
+        <div id="over-title" class="title"></div>
+        <div id="result-text" class="sub-title"></div>
+        <div class="btn-group">
+            <button class="btn-start" onclick="triggerIntro()">다시 도망치기</button>
+            <button class="btn-records" onclick="resetToMainMenu()">메인 화면</button>
+        </div>
+    </div>
+
+    <div id="clear-overlay">
+        <div class="title" style="color:#4ade80; text-shadow:0 0 20px #22c55e;">🎉 성 대 한 전 역 식 🎉</div>
+        <div style="color:#fde047; font-weight:bold; font-size:18px; margin: 5px 0;">
+            "<span id="clear-player-name">황룡</span>" 해병의 무사 전역을 축하합니다!
+        </div>
+        
+        <div class="jail-box">
+            <div class="jail-bars"></div>
+            <canvas id="jailBossCanvas" width="160" height="160"></canvas>
+        </div>
+        <div style="color:#ef4444; font-size:14px; font-weight:bold; margin-bottom:15px;">
+            🚨 황근출 해병님은 직권남용 및 괴물화 폭주 죄목으로<br>수석헌병에 의해 영창 징역 69년형에 처해졌습니다!
+        </div>
+
+        <div id="clear-stats" style="color:#fff; font-size:14px; margin-bottom:15px; line-height:1.6;"></div>
+
+        <div class="btn-group">
+            <button class="btn-start" style="background:linear-gradient(180deg, #16a34a 0%, #052e16 100%); border-color:#4ade80;" onclick="resetToMainMenu()">메인 화면으로</button>
+            <button class="btn-records" onclick="showRecords()">명예의 전당 🏆</button>
+        </div>
+    </div>
+
+    <div id="records-modal">
+        <div class="title" style="font-size:24px;">🏆 명예의 전당 (전역자 명단)</div>
+        <div style="color:#94a3b8; font-size:12px; margin-bottom:10px;">브라우저에 기록된 생존 리스트입니다.</div>
+        <table class="records-table">
+            <thead>
+                <tr>
+                    <th>순위</th>
+                    <th>이름</th>
+                    <th>난이도</th>
+                    <th>버튼 시간</th>
+                    <th>결과</th>
+                </tr>
+            </thead>
+            <tbody id="records-list">
+            </tbody>
+        </table>
+        <button class="btn-records" onclick="closeRecords()" style="margin-top:10px;">닫기</button>
+    </div>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+const bossCanvas = document.createElement('canvas');
+bossCanvas.width = 160; bossCanvas.height = 160;
+const bCtx = bossCanvas.getContext('2d');
+
+let eyeGlowOffset = 0;
+
+function renderMonsterHwangChun(stage = 0, eyeOffset = 0) {
+    bCtx.clearRect(0, 0, 160, 160);
+
+    let bodyColor = '#8d4817';
+    let faceColor = '#9b511a';
+    if (stage >= 2) { bodyColor = '#450a0a'; faceColor = '#581c87'; }
+    if (stage >= 4) { bodyColor = '#180202'; faceColor = '#2e1065'; }
+
+    if (stage >= 3) {
+        bCtx.strokeStyle = '#dc2626'; bCtx.lineWidth = 6;
+        for (let i = 0; i < 4; i++) {
+            const angle = (i * Math.PI / 2) + Math.sin(Date.now() / 100 + i) * 0.4;
+            bCtx.beginPath(); bCtx.moveTo(80, 80);
+            bCtx.quadraticCurveTo(80 + Math.cos(angle)*70, 80 + Math.sin(angle)*70, 80 + Math.cos(angle)*100, 80 + Math.sin(angle)*100);
+            bCtx.stroke();
+        }
+    }
+
+    bCtx.fillStyle = bodyColor;
+    bCtx.beginPath(); bCtx.ellipse(80, 135, 55 + (stage*3), 30 + (stage*2), 0, 0, Math.PI * 2); bCtx.fill();
+    bCtx.fillRect(60 - stage*2, 85, 40 + stage*4, 40);
+
+    if (stage >= 2) {
+        bCtx.fillStyle = '#111827';
+        bCtx.beginPath(); bCtx.moveTo(45, 30); bCtx.quadraticCurveTo(20, 10, 10, -10); bCtx.quadraticCurveTo(30, 10, 55, 35); bCtx.fill();
+        bCtx.beginPath(); bCtx.moveTo(115, 30); bCtx.quadraticCurveTo(140, 10, 150, -10); bCtx.quadraticCurveTo(130, 10, 105, 35); bCtx.fill();
+    }
+
+    bCtx.fillStyle = faceColor;
+    bCtx.beginPath();
+    bCtx.moveTo(50 - stage, 55); bCtx.lineTo(110 + stage, 55);
+    bCtx.lineTo(105 + stage*2, 95 + stage); bCtx.lineTo(80, 105 + stage*3); bCtx.lineTo(55 - stage*2, 95 + stage);
+    bCtx.closePath(); bCtx.fill();
+
+    bCtx.fillStyle = stage >= 4 ? '#000000' : '#1e293b';
+    bCtx.beginPath(); bCtx.moveTo(35, 45); bCtx.lineTo(125, 45); bCtx.lineTo(115, 18); bCtx.lineTo(80, 10); bCtx.lineTo(45, 18); bCtx.closePath(); bCtx.fill();
+
+    bCtx.fillStyle = '#0f172a'; bCtx.fillRect(30, 45, 100, 10);
+    bCtx.fillStyle = '#dc2626'; bCtx.fillRect(58, 24, 44, 15);
+    bCtx.strokeStyle = '#fbbf24'; bCtx.lineWidth = 1; bCtx.strokeRect(58, 24, 44, 15);
+
+    bCtx.fillStyle = '#fde047'; bCtx.font = 'bold 9px Malgun Gothic';
+    bCtx.fillText(stage >= 3 ? '괴 물 출' : '황 근 출', 63, 35);
+
+    bCtx.fillStyle = '#050505';
+    bCtx.beginPath(); bCtx.moveTo(52, 60); bCtx.lineTo(108, 60); bCtx.lineTo(103, 75); bCtx.lineTo(57, 75); bCtx.closePath(); bCtx.fill();
+
+    const eyeX = 92 + eyeOffset;
+    bCtx.fillStyle = '#ef4444'; bCtx.shadowColor = '#ef4444'; bCtx.shadowBlur = 10 + (stage * 8);
+    bCtx.beginPath(); bCtx.arc(eyeX, 67, 5 + stage, 0, Math.PI * 2); bCtx.fill();
+    bCtx.fillStyle = '#ffffff'; bCtx.beginPath(); bCtx.arc(eyeX, 67, 2, 0, Math.PI * 2); bCtx.fill();
+
+    if (stage >= 1) {
+        bCtx.fillStyle = '#ef4444'; bCtx.beginPath(); bCtx.arc(68 - eyeOffset, 67, 4 + stage, 0, Math.PI * 2); bCtx.fill();
+    }
+    bCtx.shadowBlur = 0;
+
+    if (stage === 0) {
+        bCtx.strokeStyle = '#3a1a05'; bCtx.lineWidth = 3; bCtx.beginPath(); bCtx.moveTo(68, 92); bCtx.lineTo(92, 92); bCtx.stroke();
+    } else {
+        bCtx.fillStyle = '#450a0a'; bCtx.beginPath(); bCtx.ellipse(80, 92, 12 + stage*3, 6 + stage*2, 0, 0, Math.PI * 2); bCtx.fill();
+        bCtx.fillStyle = '#ffffff';
+        for (let i = -10; i <= 10; i += 5) { bCtx.fillRect(80 + i, 87, 2, 4); bCtx.fillRect(80 + i, 93, 2, 4); }
+    }
+}
+
+renderMonsterHwangChun(0, 0);
+
+const introCanvas = document.getElementById('introBossCanvas');
+const iCtx = introCanvas.getContext('2d');
+let introAnimId = null;
+let introStage = 0;
+
+function animateIntroBoss() {
+    eyeGlowOffset = Math.sin(Date.now() / 150) * 4;
+    renderMonsterHwangChun(introStage, eyeGlowOffset);
+    iCtx.clearRect(0, 0, 160, 160);
+    iCtx.drawImage(bossCanvas, 0, 0);
+    introAnimId = requestAnimationFrame(animateIntroBoss);
+}
+
+let gameActive = false;
+let startTime = 0;
+let survivalTime = 0;
+let selectedDifficulty = 'easy';
+const targetWinTime = 50.0; // 50초 목표로 수정
+let introTimeouts = [];
+
+const deathMessages = [
+    "새끼... 기열! 괴물화된 황근출 해병님에게 삼켜졌다!",
+    "따흐앙! 황룡은 괴물의 악마 같은 촉수에 분쇄되었다!",
+    "괴물이 된 황근출 해병님의 안광 한 번에 해병 수육이 되었다!",
+    "기괴하게 찢어진 입 속으로 완전히 자진입대 당했다!",
+    "참새보다 더한 지옥의 괴물 형태를 보고 심장마비로 폭사했다!",
+    "악! 황근출 해병님의 괴물화 파동에 전신이 분해되었다!",
+    "견쌍섭 해병에게 영혼을 주머니째 '자진반납' 당했다!",
+    "황룡의 뼈와 살이 분리되어 연병장 주교재로 채택되었다!",
+    "따흐흑! 해병 짜장에 말려들어 영원히 빠져나오지 못한다!",
+    "기열 황룡, 괴물 해병의 악마 같은 사자후에 고막이 파열되어 폭사!",
+    "괴물화된 황근출 해병님의 기합 가득한 압도적 악력에 찌그러졌다!",
+    "50초의 벽을 넘지 못하고 영원히 해병 동산의 자갈이 되었다!",
+    "역기열 참새의 그림자만 보고도 경악하여 해병 수육이 되어버렸다!",
+    "입영통지서의 저주를 피하지 못하고 강제 재입대 당했다!",
+    "라이라이 차차차! 괴물 해병들의 떼창에 정신이 붕괴되었다!",
+    "황근출 해병님의 기합 찬 눈빛 하나로 황룡은 잿더미가 되었다!",
+    "포항 오도짜세해병직할오도짜증전설굴다리 밑에 영원히 묻혔다!",
+    "아따거! 괴물 촉수의 불꽃 피치 격동에 온몸이 오징어처럼 구워졌다!",
+    "무적 구르기를 너무 늦게 써서 괴물의 이빨에 갈려나갔다!",
+    "새끼... 민간인 전역은 미친 기열놈이나 꿈꾸는 소리다!",
+    "괴물화 4단계의 지옥 사이렌 소리에 뇌가 녹아내렸다!",
+    "황룡의 전역증이 괴물의 침에 녹아 형체를 잃었다!",
+    "기열 황룡, 지옥의 해병 탕수육으로 재탄생하였다!",
+    "악! 몸이 1.74초 만에 분해되는 기합 찬 사상을 증명했다!",
+    "지옥에서 올라온 악마의 곤봉질에 수육 반죽이 되었다!"
+];
+
+const bgMarinePhrases = [
+    { text: "새끼... 기열!", x: 50, y: 220, alpha: 0.18, size: 22 },
+    { text: "악!", x: 480, y: 280, alpha: 0.22, size: 30 },
+    { text: "라이라이 차차차!", x: 80, y: 380, alpha: 0.15, size: 20 },
+    { text: "무 적 해 병", x: 420, y: 460, alpha: 0.18, size: 24 },
+    { text: "헤이빠빠리빠!", x: 60, y: 550, alpha: 0.15, size: 18 },
+    { text: "따흐앙!", x: 490, y: 620, alpha: 0.2, size: 26 },
+    { text: "자진입대를 환영한다!", x: 180, y: 300, alpha: 0.12, size: 21 },
+    { text: "톤톤정 해병님!", x: 340, y: 580, alpha: 0.14, size: 19 }
+];
+
+const difficultySettings = {
+    easy: { name: '아기해병 (EASY)', baseSpeed: 0.5, baseSpawn: 0.02 },
+    normal: { name: '오도해병 (NORMAL)', baseSpeed: 0.75, baseSpawn: 0.04 },
+    hard: { name: '해병지옥 (HARD)', baseSpeed: 1.0, baseSpawn: 0.07 }
+};
+
+let shakeTime = 0; let shakeIntensity = 0;
+function triggerShake(intensity, duration) { shakeIntensity = intensity; shakeTime = duration; }
+
+let audioCtx = null; let bgmTimer = null;
+const baseBravoNotes = [
+    { note: 261.63, duration: 0.22 }, { note: 329.63, duration: 0.22 }, { note: 392.00, duration: 0.22 }, { note: 523.25, duration: 0.44 },
+    { note: 440.00, duration: 0.22 }, { note: 392.00, duration: 0.22 }, { note: 329.63, duration: 0.44 }
+];
+
+function playSound(freq, duration, type='square', vol=0.08) {
+    if (!audioCtx) return;
+    try {
+        const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+        osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + duration);
+    } catch (e) {}
+}
+
+function startBGM() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    stopBGM();
+
+    let noteIdx = 0;
+    function nextNote() {
+        if (!gameActive) return;
+        const currentStage = Math.min(4, Math.floor(survivalTime / 10)); // 10초 간격으로 스펙트럼 조정
+        let tempoFactor = 1.0 - (currentStage * 0.15); 
+        if (currentStage === 4) tempoFactor = 0.35;
+
+        const current = baseBravoNotes[noteIdx];
+        let freq = current.note; let waveType = 'sawtooth'; let vol = 0.06;
+
+        if (currentStage === 0) { waveType = 'triangle'; }
+        else if (currentStage === 1) { waveType = 'sawtooth'; freq *= 1.05; }
+        else if (currentStage === 2) { waveType = 'square'; freq *= 0.8; playSound(freq * 1.5, current.duration * tempoFactor, 'sawtooth', 0.04); }
+        else if (currentStage === 3) { waveType = 'sawtooth'; freq *= (Math.random() > 0.5 ? 0.7 : 1.3); vol = 0.09; }
+        else if (currentStage === 4) { waveType = 'sawtooth'; freq = 100 + Math.random() * 800; vol = 0.12; playSound(1200 + Math.sin(Date.now()/50)*400, 0.1, 'sine', 0.05); }
+
+        playSound(freq, current.duration * tempoFactor, waveType, vol);
+        noteIdx = (noteIdx + 1) % baseBravoNotes.length;
+        bgmTimer = setTimeout(nextNote, current.duration * tempoFactor * 1000);
+    }
+    nextNote();
+}
+
+function stopBGM() { if (bgmTimer) clearTimeout(bgmTimer); }
+
+function selectDifficulty(diff, btnEl) {
+    selectedDifficulty = diff;
+    document.querySelectorAll('.btn-diff').forEach(b => b.classList.remove('selected'));
+    btnEl.classList.add('selected');
+}
+
+function resetToMainMenu() {
+    gameActive = false; stopBGM();
+    if (introAnimId) cancelAnimationFrame(introAnimId);
+    introTimeouts.forEach(t => clearTimeout(t));
+    document.getElementById('intro-overlay').classList.remove('shake-effect');
+    document.getElementById('screen-over').style.display = 'none';
+    document.getElementById('clear-overlay').style.display = 'none';
+    document.getElementById('intro-overlay').style.display = 'none';
+    document.getElementById('danger-badge').style.display = 'none';
+    document.getElementById('screen-start').style.display = 'flex';
+    document.getElementById('val-time').innerText = '0.0';
+    memeList = []; particles = [];
+    draw();
+}
+
+function triggerIntro() {
+    document.getElementById('screen-start').style.display = 'none';
+    document.getElementById('screen-over').style.display = 'none';
+    document.getElementById('clear-overlay').style.display = 'none';
+    document.getElementById('danger-badge').style.display = 'none';
+    
+    const introOverlay = document.getElementById('intro-overlay');
+    const introSpeaker = document.getElementById('intro-speaker');
+    const introMsg = document.getElementById('intro-msg');
+    
+    introOverlay.style.display = 'flex';
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    introStage = 0; animateIntroBoss();
+    introTimeouts = [];
+
+    const playerName = document.getElementById('player-name').value.trim() || "황룡";
+
+    const script = [
+        { speaker: `${playerName} (기열 전역대기수)`, msg: "제발... 50초만 버티면 전역이다... 나 좀 보내줘라!", delay: 0, sound: 300, stage: 0 },
+        { speaker: "황근출 해병님", msg: "감히 해병대를 버리고 전역을 꿈꾸다니... 새끼... 기열!!", delay: 1800, sound: 120, stage: 1 },
+        { speaker: "황근출 해병님 (?)", msg: "키에에엑!! 몸 속의 해병 혼이... 괴물로 솟구친다!!", delay: 3600, sound: 90, stage: 2, shake: true },
+        { speaker: "괴물화된 황근출", msg: "너의 영혼을 씹어 삼켜 해병 수육으로 만들어주마!!!", delay: 5400, sound: 60, stage: 3, shake: true },
+        { speaker: "시스템", msg: "황근출 해병님이 괴물로 변형됩니다! 50초간 생존하십시오!", delay: 7200, sound: 400, stage: 4 }
+    ];
+
+    script.forEach(step => {
+        let t = setTimeout(() => {
+            introSpeaker.innerText = step.speaker;
+            introMsg.innerText = step.msg;
+            introStage = step.stage;
+            playSound(step.sound, 0.4, 'sawtooth', 0.3);
+            if (step.shake) {
+                introOverlay.classList.add('shake-effect');
+                setTimeout(() => introOverlay.classList.remove('shake-effect'), 800);
+            }
+        }, step.delay);
+        introTimeouts.push(t);
+    });
+
+    let endT = setTimeout(() => { skipIntro(); }, 9000);
+    introTimeouts.push(endT);
+}
+
+function skipIntro() {
+    introTimeouts.forEach(t => clearTimeout(t));
+    if (introAnimId) cancelAnimationFrame(introAnimId);
+    document.getElementById('intro-overlay').style.display = 'none';
+    startGame();
+}
+
+const player = {
+    x: 270, y: 670, width: 60, height: 75, speed: 10.5,
+    isDashing: false, dashTimer: 0, dashCooldown: 0, afterimages: []
+};
+
+const keys = { left: false, right: false };
+let memeList = []; let particles = [];
+
+function doDash() {
+    if (player.dashCooldown <= 0 && !player.isDashing && gameActive) {
+        player.isDashing = true; player.dashTimer = 22; player.dashCooldown = 48; 
+        triggerShake(5, 10); playSound(180, 0.25, 'sine', 0.2); 
+    }
+}
+
+const marineMemes = [
+    { type: 'chun', name: '황근출 분신', size: 60, speed: 3.5 },
+    { type: 'sub', name: '견쌍섭 (긴급입대)', size: 38, speed: 5.5 },
+    { type: 'suyuk', name: '해병 수육', size: 32, speed: 4.5 },
+    { type: 'jjagang', name: '해병 짜장', size: 35, speed: 4.8 },
+    { type: 'sparrow', name: '역기열 참새', size: 40, speed: 5.2 },
+    { type: 'paper', name: '입영통지서', size: 30, speed: 6.2 }
+];
+
+function startGame() {
+    player.x = canvas.width / 2 - player.width / 2;
+    player.isDashing = false; player.dashCooldown = 0; player.afterimages = [];
+    memeList = []; particles = []; survivalTime = 0;
+    startTime = Date.now(); gameActive = true;
+    startBGM(); requestAnimationFrame(gameLoop);
+}
+
+window.addEventListener('keydown', e => {
+    if (e.key === 'Escape' || e.key === 'Esc') resetToMainMenu();
+    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = true;
+    if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = true;
+    if (e.key === ' ' || e.key === 'Spacebar') doDash();
+});
+window.addEventListener('keyup', e => {
+    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = false;
+    if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = false;
+});
+canvas.addEventListener('mousedown', doDash);
+canvas.addEventListener('touchstart', doDash);
+
+function drawTaegeukgi(x, y, w, h) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0, 0, w, h);
+
+    const cx = w / 2;
+    const cy = h / 2;
+    const r = h / 4;
+
+    ctx.fillStyle = '#cd2e3a';
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, Math.PI * 0.75, Math.PI * 1.75, false);
+    ctx.fill();
+
+    ctx.fillStyle = '#0047a0';
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, Math.PI * 1.75, Math.PI * 0.75, false);
+    ctx.fill();
+
+    ctx.fillStyle = '#cd2e3a';
+    ctx.beginPath();
+    ctx.arc(cx - (r / 2) * Math.cos(Math.PI * 0.25), cy - (r / 2) * Math.sin(Math.PI * 0.25), r / 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#0047a0';
+    ctx.beginPath();
+    ctx.arc(cx + (r / 2) * Math.cos(Math.PI * 0.25), cy + (r / 2) * Math.sin(Math.PI * 0.25), r / 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#000000';
+    const kwaiW = w * 0.12; const kwaiH = h * 0.04;
+    ctx.fillRect(cx - r*1.3, cy - r*1.1, kwaiW, kwaiH);
+    ctx.fillRect(cx + r*0.7, cy + r*0.9, kwaiW, kwaiH);
+    ctx.fillRect(cx + r*0.7, cy - r*1.1, kwaiW, kwaiH);
+    ctx.fillRect(cx - r*1.3, cy + r*0.9, kwaiW, kwaiH);
+
+    ctx.restore();
+}
+
+function drawParkPresident(x, y, w, h) {
+    ctx.save();
+    ctx.translate(x, y);
+
+    ctx.fillStyle = '#b45309';
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(3, 3, w - 6, h - 6);
+
+    const cx = w / 2;
+    
+    ctx.fillStyle = '#1e3a8a';
+    ctx.beginPath();
+    ctx.ellipse(cx, h - 2, w * 0.4, h * 0.35, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#fbbf24';
+    ctx.fillRect(cx - 12, h - 18, 6, 8);
+    ctx.fillRect(cx - 4, h - 18, 6, 8);
+
+    ctx.fillStyle = '#fca5a5';
+    ctx.fillRect(cx - 12, 14, 24, 26);
+
+    ctx.fillStyle = '#1e3a8a';
+    ctx.fillRect(cx - 16, 8, 32, 10);
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(cx - 18, 16, 36, 4);
+    ctx.fillStyle = '#fbbf24';
+    ctx.fillRect(cx - 4, 12, 8, 4);
+
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(cx - 11, 22, 10, 8);
+    ctx.fillRect(cx + 1, 22, 10, 8);
+    ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1;
+    ctx.strokeRect(cx - 11, 22, 10, 8); ctx.strokeRect(cx + 1, 22, 10, 8);
+
+    ctx.fillStyle = '#991b1b';
+    ctx.fillRect(cx - 5, 34, 10, 2);
+
+    ctx.restore();
+}
+
+function drawTopBoss() {
+    ctx.save();
+    const bossX = canvas.width / 2; const bossY = 75;
+    const currentMonsterStage = Math.min(4, Math.floor(survivalTime / 10));
+    const timeRatio = Math.min(1.0, survivalTime / 50);
+    let scale = 0.9 + (timeRatio * 0.55); let redGlow = 15 + (timeRatio * 60);
+
+    drawTaegeukgi(25, 45, 80, 50);
+    drawParkPresident(495, 45, 75, 65);
+
+    if (survivalTime > 35) {
+        const jx = (Math.random() - 0.5) * (survivalTime * 0.3);
+        const jy = (Math.random() - 0.5) * (survivalTime * 0.3);
+        ctx.translate(jx, jy);
+    }
+
+    ctx.translate(bossX, bossY); ctx.scale(scale, scale);
+    const glowGrad = ctx.createRadialGradient(0, 0, 10, 0, 0, redGlow + 35);
+    glowGrad.addColorStop(0, currentMonsterStage >= 3 ? 'rgba(185, 28, 28, 0.95)' : 'rgba(239, 68, 68, 0.8)');
+    glowGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = glowGrad; ctx.beginPath(); ctx.arc(0, 0, redGlow + 40, 0, Math.PI * 2); ctx.fill();
+
+    renderMonsterHwangChun(currentMonsterStage, Math.sin(Date.now()/150)*4);
+    ctx.drawImage(bossCanvas, -80, -80, 160, 160);
+
+    ctx.strokeStyle = currentMonsterStage >= 3 ? '#a855f7' : '#dc2626';
+    ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(0, 0, 65, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+}
+
+function drawHwangRyong() {
+    player.afterimages.forEach(img => {
+        ctx.save(); ctx.globalAlpha = img.alpha; ctx.fillStyle = '#ef4444';
+        ctx.fillRect(img.x, img.y, player.width, player.height); ctx.restore();
+    });
+
+    ctx.save(); ctx.translate(player.x, player.y);
+    if (player.isDashing) {
+        ctx.translate(player.width/2, player.height/2);
+        ctx.rotate((player.dashTimer * 15) * Math.PI / 180);
+        ctx.translate(-player.width/2, -player.height/2);
+    }
+    ctx.fillStyle = player.isDashing ? '#facc15' : '#dc2626'; ctx.fillRect(10, 25, 40, 35);
+    ctx.fillStyle = '#fde047'; ctx.fillRect(28, 25, 4, 35);
+    ctx.fillStyle = '#fca5a5'; ctx.fillRect(15, 5, 30, 22);
+    ctx.fillStyle = '#1e293b'; ctx.fillRect(13, 0, 34, 8);
+    ctx.fillStyle = '#64748b'; ctx.fillRect(30, 12, 8, 3);
+    ctx.fillStyle = '#000'; ctx.fillRect(34, 12, 3, 3);
+    ctx.fillStyle = '#1e293b'; ctx.fillRect(12, 60, 14, 15); ctx.fillRect(34, 60, 14, 15);
+    ctx.restore();
+}
+
+function drawMeme(m) {
+    ctx.save(); ctx.translate(m.x, m.y);
+    if (m.type === 'chun') {
+        const stage = Math.min(4, Math.floor(survivalTime / 10));
+        renderMonsterHwangChun(stage, 0); ctx.drawImage(bossCanvas, -25, -25, 50, 50);
+    } else if (m.type === 'sub') {
+        ctx.fillStyle = '#0f172a'; ctx.fillRect(-20, -20, 40, 40);
+        ctx.fillStyle = '#ef4444'; ctx.font = 'bold 12px sans-serif'; ctx.fillText('입대!', -15, 5);
+    } else if (m.type === 'suyuk') {
+        ctx.fillStyle = '#b91c1c'; ctx.beginPath(); ctx.arc(0, 0, 18, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#fca5a5'; ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI*2); ctx.fill();
+    } else if (m.type === 'jjagang') {
+        ctx.fillStyle = '#451a03'; ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI*2); ctx.fill();
+    } else if (m.type === 'sparrow') {
+        ctx.font = '32px sans-serif'; ctx.fillText('🐦', -16, 12);
+    } else {
+        ctx.font = '30px sans-serif'; ctx.fillText('📜', -15, 10);
+    }
+    ctx.restore();
+}
+
+function spawnMemes() {
+    const set = difficultySettings[selectedDifficulty];
+    let spawnProb = set.baseSpawn + (survivalTime * 0.0022);
+    if (Math.random() < spawnProb) {
+        const spec = marineMemes[Math.floor(Math.random() * marineMemes.length)];
+        memeList.push({
+            x: 30 + Math.random() * (canvas.width - 60), y: 140, ...spec,
+            vx: (Math.random() - 0.5) * (1.2 + (survivalTime * 0.05))
+        });
+    }
+}
+
+function update() {
+    if (!gameActive) return;
+    survivalTime = (Date.now() - startTime) / 1000;
+    document.getElementById('val-time').innerText = Math.min(50.0, survivalTime).toFixed(1);
+
+    if (survivalTime >= targetWinTime) { winGame(); return; }
+
+    const badge = document.getElementById('danger-badge');
+    if (survivalTime >= 40) { badge.innerText = "☠️ 최종 괴물화! BGM 폭주 상태!"; badge.style.display = 'block'; }
+    else if (survivalTime >= 30) { badge.innerText = "🚨 3단계 변형: 불협화음 BGM 가속!"; badge.style.display = 'block'; }
+    else if (survivalTime >= 20) { badge.innerText = "⚠️ 2단계 변형: 묵직한 베이스 추가!"; badge.style.display = 'block'; }
+    else if (survivalTime >= 10) { badge.innerText = "⚠️ 1단계 변형: BGM 피치 상승!"; badge.style.display = 'block'; }
+
+    if (player.dashCooldown > 0) {
+        player.dashCooldown--;
+        document.getElementById('val-dash').innerText = (player.dashCooldown / 60).toFixed(1) + 's';
+        document.getElementById('val-dash').style.color = '#ef4444';
+    } else {
+        document.getElementById('val-dash').innerText = 'READY'; document.getElementById('val-dash').style.color = '#4ade80';
+    }
+
+    if (player.isDashing) {
+        player.dashTimer--; player.afterimages.push({ x: player.x, y: player.y, alpha: 0.6 });
+        if (player.dashTimer <= 0) player.isDashing = false;
+    }
+
+    for (let i = player.afterimages.length - 1; i >= 0; i--) {
+        player.afterimages[i].alpha -= 0.08;
+        if (player.afterimages[i].alpha <= 0) player.afterimages.splice(i, 1);
+    }
+
+    if (keys.left) player.x -= player.speed * (player.isDashing ? 1.3 : 1.0);
+    if (keys.right) player.x += player.speed * (player.isDashing ? 1.3 : 1.0);
+    if (player.x < 0) player.x = 0;
+    if (player.x > canvas.width - player.width) player.x = canvas.width - player.width;
+
+    spawnMemes();
+    const set = difficultySettings[selectedDifficulty];
+    const speedMult = set.baseSpeed + (survivalTime * 0.024);
+
+    for (let i = memeList.length - 1; i >= 0; i--) {
+        const m = memeList[i];
+        m.y += m.speed * speedMult; m.x += m.vx;
+
+        if (!player.isDashing) {
+            // 판정 범위 축소 (기존 14px/8px -> 22px/15px 마진 축소로 더 정밀하고 아슬아슬하게 히트박스 판정)
+            const pHitLeft = player.x + 22;
+            const pHitRight = player.x + player.width - 22;
+            const pHitTop = player.y + 20;
+            const pHitBottom = player.y + player.height - 15;
+
+            const mHitRadius = (m.size / 2) * 0.7; // 장애물 히트박스 30% 축소
+
+            if (
+                m.x + mHitRadius > pHitLeft && m.x - mHitRadius < pHitRight &&
+                m.y + mHitRadius > pHitTop && m.y - mHitRadius < pHitBottom
+            ) {
+                endGame(m.name); return;
+            }
+        }
+        if (m.y > canvas.height + 60) memeList.splice(i, 1);
+    }
+
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx; p.y += p.vy; p.alpha -= 0.02;
+        if (p.alpha <= 0) particles.splice(i, 1);
+    }
+    if (shakeTime > 0) shakeTime--;
+}
+
+function drawBackgroundPhrases() {
+    bgMarinePhrases.forEach(item => {
+        ctx.save();
+        ctx.fillStyle = `rgba(220, 38, 38, ${item.alpha})`;
+        ctx.font = `900 ${item.size}px Malgun Gothic`;
+        ctx.fillText(item.text, item.x, item.y);
+        ctx.restore();
+    });
+}
+
+function draw() {
+    ctx.save();
+    if (shakeTime > 0) {
+        const dx = (Math.random() - 0.5) * shakeIntensity;
+        const dy = (Math.random() - 0.5) * shakeIntensity;
+        ctx.translate(dx, dy);
+    }
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    if (survivalTime > 30) { bgGrad.addColorStop(0, '#3b0764'); bgGrad.addColorStop(1, '#020005'); }
+    else if (survivalTime > 15) { bgGrad.addColorStop(0, '#5f0707'); bgGrad.addColorStop(1, '#050101'); }
+    else { bgGrad.addColorStop(0, '#2a0808'); bgGrad.addColorStop(1, '#080101'); }
+    ctx.fillStyle = bgGrad; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    drawBackgroundPhrases();
+
+    ctx.strokeStyle = '#78350f'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, 140); ctx.lineTo(canvas.width, 140); ctx.stroke();
+    ctx.strokeStyle = '#dc2626'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, 745); ctx.lineTo(canvas.width, 745); ctx.stroke();
+
+    drawTopBoss(); drawHwangRyong(); memeList.forEach(drawMeme);
+
+    particles.forEach(p => {
+        ctx.save(); ctx.globalAlpha = p.alpha; ctx.fillStyle = p.color;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill(); ctx.restore();
+    });
+    ctx.restore();
+}
+
+function winGame() {
+    gameActive = false; stopBGM();
+    const playerName = document.getElementById('player-name').value.trim() || "황룡";
+
+    [523.25, 659.25, 783.99, 1046.50].forEach((f, i) => {
+        setTimeout(() => playSound(f, 0.4, 'triangle', 0.2), i * 150);
+    });
+
+    saveRecord(playerName, selectedDifficulty, 50.0, true);
+
+    const jailCanvas = document.getElementById('jailBossCanvas');
+    const jCtx = jailCanvas.getContext('2d');
+    renderMonsterHwangChun(0, 0); 
+    jCtx.clearRect(0, 0, 160, 160);
+    jCtx.drawImage(bossCanvas, 0, 0);
+
+    document.getElementById('clear-player-name').innerText = playerName;
+    document.getElementById('clear-stats').innerHTML = `
+        난이도: <b style="color:#fde047">${difficultySettings[selectedDifficulty].name}</b><br>
+        생존 기록: <b style="color:#4ade80">50.0초 (전역 완주!)</b>
+    `;
+    document.getElementById('clear-overlay').style.display = 'flex';
+}
+
+function endGame(hitByName) {
+    gameActive = false; stopBGM();
+    triggerShake(25, 30); playSound(80, 0.8, 'sawtooth', 0.4);
+
+    const playerName = document.getElementById('player-name').value.trim() || "황룡";
+    saveRecord(playerName, selectedDifficulty, survivalTime, false);
+
+    for (let i = 0; i < 50; i++) {
+        particles.push({
+            x: player.x + player.width/2, y: player.y + player.height/2,
+            vx: (Math.random() - 0.5) * 20, vy: (Math.random() - 0.5) * 20,
+            size: Math.random() * 9 + 3,
+            color: Math.random() < 0.5 ? '#dc2626' : '#581c87', alpha: 1.0
+        });
+    }
+
+    const randomMsg = deathMessages[Math.floor(Math.random() * deathMessages.length)];
+
+    setTimeout(() => {
+        document.getElementById('screen-over').style.display = 'flex';
+        document.getElementById('over-title').innerText = `[${hitByName}]에 피격!`;
+        document.getElementById('over-title').style.color = "#ef4444";
+        document.getElementById('result-text').innerHTML = `
+            도전자: <b style="color:#fff">${playerName}</b><br>
+            선택 난이도: <b style="color:#fde047">${difficultySettings[selectedDifficulty].name}</b><br>
+            최종 버틴 시간: <b style="color:#fbbf24">${survivalTime.toFixed(1)}초 / 50.0초</b><br><br>
+            <span style="color:#ef4444; font-weight:bold; line-height:1.4;">"${randomMsg}"</span>
+        `;
+    }, 600);
+}
+
+function saveRecord(name, diff, time, isClear) {
+    let records = JSON.parse(localStorage.getItem('marine_dodge_records') || '[]');
+    records.push({
+        name: name,
+        diff: difficultySettings[diff].name,
+        time: parseFloat(time.toFixed(1)),
+        isClear: isClear,
+        date: new Date().toLocaleDateString()
+    });
+    records.sort((a, b) => b.time - a.time);
+    records = records.slice(0, 10);
+    localStorage.setItem('marine_dodge_records', JSON.stringify(records));
+}
+
+function showRecords() {
+    const listEl = document.getElementById('records-list');
+    let records = JSON.parse(localStorage.getItem('marine_dodge_records') || '[]');
+    listEl.innerHTML = '';
+
+    if (records.length === 0) {
+        listEl.innerHTML = '<tr><td colspan="5">저장된 기록이 없습니다!</td></tr>';
+    } else {
+        records.forEach((r, i) => {
+            listEl.innerHTML += `
+                <tr>
+                    <td style="color:#fbbf24; font-weight:bold;">${i+1}위</td>
+                    <td>${r.name}</td>
+                    <td>${r.diff}</td>
+                    <td style="color:#fde047; font-weight:bold;">${r.time}초</td>
+                    <td style="color:${r.isClear ? '#4ade80' : '#ef4444'}; font-weight:bold;">${r.isClear ? '🎉전역' : '☠️전사'}</td>
+                </tr>
+            `;
+        });
+    }
+    document.getElementById('records-modal').style.display = 'flex';
+}
+
+function closeRecords() {
+    document.getElementById('records-modal').style.display = 'none';
+}
+
+function gameLoop() {
+    if (gameActive) {
+        update(); draw();
+        requestAnimationFrame(gameLoop);
+    }
+}
+
+draw();
+</script>
+
+</body>
+</html>

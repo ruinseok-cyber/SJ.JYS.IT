@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snake Battle - 배 먹기</title>
+<style>
+*{box-sizing:border-box}
+body{
+    margin:0;background:#111827;color:white;font-family:Arial,sans-serif;
+    text-align:center;min-height:100vh
+}
+h1{margin:18px 0 8px}
+.score{display:flex;justify-content:center;gap:60px;font-size:21px;margin-bottom:10px}
+.player1{color:#22c55e}.player2{color:#ef4444}
+canvas{background:#1f2937;border:4px solid #374151;display:block;margin:auto}
+#message{font-size:19px;font-weight:bold;margin:10px;min-height:28px}
+button{
+    padding:11px 22px;font-size:16px;border:0;border-radius:8px;
+    cursor:pointer;background:#3b82f6;color:white;margin:4px
+}
+button:hover{background:#2563eb}
+.controls{color:#9ca3af;line-height:1.7;margin-top:7px}
+#menu{
+    position:fixed;inset:0;background:rgba(10,15,25,.96);
+    display:flex;align-items:center;justify-content:center;z-index:10
+}
+.menuBox{
+    width:min(430px,90vw);padding:30px;border-radius:18px;
+    background:#1f2937;box-shadow:0 15px 50px rgba(0,0,0,.45)
+}
+.menuBox h2{margin-top:0}
+.modeBtn{width:80%;font-size:19px;padding:14px;margin:8px}
+.difficulty{display:none;margin-top:15px}
+.diffBtn{width:30%;padding:12px 5px}
+.small{color:#9ca3af;font-size:14px;margin-top:15px}
+.hidden{display:none!important}
+
+.nickname-box{display:none;margin:16px auto 10px;max-width:360px;text-align:left}
+.nickname-box label{display:block;margin-bottom:7px;font-weight:bold}
+.nickname-box input{width:100%;padding:12px;border-radius:9px;border:1px solid #555;background:#111827;color:#fff;font-size:16px}
+.nickname-box .confirm{width:100%;margin-top:9px}
+.nickname-error{min-height:22px;margin-top:7px;color:#f87171;font-size:14px}
+#gameArea{position:relative;display:inline-block;margin:0 auto}
+.record-panel{
+    display:none;position:absolute;inset:0;width:100%;height:100%;
+    margin:0;padding:22px;box-sizing:border-box;border-radius:0;
+    background:rgba(10,15,25,.95);border:none;overflow-y:auto;
+    text-align:left;z-index:20
+}
+.record-panel h3{margin:0 0 12px;text-align:center}
+.record-title{font-size:15px;color:#9ca3af;margin:12px 0 6px;text-align:left}
+.record-row{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.08)}
+.record-row span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.record-panel .end-buttons{display:flex;gap:8px;margin-top:16px}
+.record-panel .end-buttons button{flex:1;margin:0}
+.end-message{text-align:center;font-size:20px;font-weight:bold;margin-bottom:16px}
+#latestRecord{text-align:center;margin-bottom:8px;font-size:16px}
+
+</style>
+</head>
+<body>
+
+<div id="menu">
+  <div class="menuBox">
+    <h1>🐍 Snake Battle</h1>
+    <h2>게임 모드를 선택하세요</h2>
+    <button class="modeBtn" onclick="chooseMode('2p')">👥 2인용</button>
+    <button class="modeBtn" onclick="showSoloSetup()">🤖 혼자 하기</button>
+
+    <div id="soloNameBox" class="nickname-box">
+      <label for="soloNameInput">닉네임을 입력해주세요</label>
+      <input id="soloNameInput" maxlength="16" autocomplete="off" placeholder="닉네임 입력">
+      <div id="nicknameError" class="nickname-error"></div>
+      <button class="confirm" onclick="confirmNickname()">확인</button>
+    </div>
+
+    <div id="difficulty" class="difficulty">
+      <h3>AI 난이도</h3>
+      <button class="diffBtn" onclick="startGame('easy')">하</button>
+      <button class="diffBtn" onclick="startGame('normal')">중</button>
+      <button class="diffBtn" onclick="startGame('hard')">상</button>
+    </div>
+    <div class="small">배 🍐를 먹으면 점수를 얻고 뱀이 빨라집니다.</div>
+  </div>
+</div>
+
+<h1>🐍 2인용 Snake 대결</h1>
+
+<div class="score">
+  <div class="player1">🟢 1P: <span id="score1">0</span> / 5</div>
+  <div class="player2">🔴 <span id="p2name">2P</span>: <span id="score2">0</span> / 5</div>
+</div>
+
+<div id="soloTimer" style="display:none;font-weight:bold;margin:8px 0">시간: 00:00.000</div>
+<div id="gameArea">
+  <canvas id="game" width="600" height="600"></canvas>
+  <div id="recordPanel" class="record-panel">
+    <div id="endMessage" class="end-message"></div>
+    <div id="recordSection">
+      <h3>🏆 난이도별 솔로 기록</h3>
+      <div id="latestRecord"></div>
+      <div class="record-title">🟢 하 난이도</div>
+      <div id="recordsEasy"></div>
+      <div class="record-title">🟡 중 난이도</div>
+      <div id="recordsNormal"></div>
+      <div class="record-title">🔴 상 난이도</div>
+      <div id="recordsHard"></div>
+    </div>
+    <div class="end-buttons">
+      <button onclick="showMenu()">메뉴로</button>
+      <button onclick="restartGame()">다시 시작</button>
+    </div>
+  </div>
+</div>
+
+<div id="message">🍐 배 5개를 먼저 먹는 사람이 승리!</div>
+<button onclick="showMenu()">메뉴로</button>
+<button onclick="restartGame()">다시 시작</button>
+
+<div class="controls">
+  🟢 1P: <b>W A S D</b><br>
+  🔴 2P: <b>↑ ← ↓ →</b>
+</div>
+
+<script>
+
+const SNAKE_RECORD_KEY = "snakeSoloRecords_v4";
+let playerNickname = "";
+let soloStartTime = 0;
+let soloElapsed = 0;
+
+function snakeRecords(){
+  try { return JSON.parse(localStorage.getItem(SNAKE_RECORD_KEY) || "[]"); }
+  catch(e){ return []; }
+}
+function snakeTime(ms){
+  const m = Math.floor(ms/60000);
+  const s = Math.floor(ms/1000) % 60;
+  const x = Math.floor(ms % 1000);
+  return String(m).padStart(2,"0") + ":" + String(s).padStart(2,"0") + "." + String(x).padStart(3,"0");
+}
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[c]));
+}
+function nicknameTaken(name){
+  const n = name.trim().toLowerCase();
+  return snakeRecords().some(r => String(r.name).trim().toLowerCase() === n);
+}
+function showSoloSetup(){
+  document.getElementById("soloNameBox").style.display = "block";
+  document.getElementById("difficulty").style.display = "none";
+  document.getElementById("nicknameError").textContent = "";
+  const input = document.getElementById("soloNameInput");
+  input.value = "";
+  input.focus();
+}
+function confirmNickname(){
+  const input = document.getElementById("soloNameInput");
+  const error = document.getElementById("nicknameError");
+  const name = input.value.trim();
+
+  if(!name){
+    error.textContent = "닉네임을 입력해주세요.";
+    input.focus();
+    return false;
+  }
+  if(nicknameTaken(name)){
+    error.textContent = "이미 있는 닉네임입니다. 다시입력해주십시오";
+    input.focus();
+    input.select();
+    return false;
+  }
+
+  playerNickname = name;
+  error.textContent = "";
+  document.getElementById("difficulty").style.display = "block";
+  return true;
+}
+function startSoloClock(){
+  soloStartTime = performance.now();
+  soloElapsed = 0;
+  const timer = document.getElementById("soloTimer");
+  if(timer){
+    timer.style.display = "block";
+    timer.textContent = "시간: 00:00.000";
+  }
+}
+function tickSoloClock(now){
+  if(mode === "ai" && soloStartTime){
+    soloElapsed = now - soloStartTime;
+    const timer = document.getElementById("soloTimer");
+    if(timer) timer.textContent = "시간: " + snakeTime(soloElapsed);
+  }
+}
+function saveSoloRecord(){
+  if(mode !== "ai" || !playerNickname || !soloStartTime) return;
+
+  soloElapsed = performance.now() - soloStartTime;
+  const newTime = Math.round(soloElapsed);
+  const nameKey = playerNickname.trim().toLowerCase();
+  const levelName = difficulty === "easy" ? "하" : difficulty === "normal" ? "중" : "상";
+  const latest = document.getElementById("latestRecord");
+
+  const records = snakeRecords();
+  const existingIndex = records.findIndex(r =>
+    String(r.name).trim().toLowerCase() === nameKey && r.difficulty === difficulty
+  );
+
+  if(existingIndex === -1){
+    // 이 닉네임+난이도의 첫 기록
+    records.push({ name: playerNickname, time: newTime, difficulty, createdAt: Date.now() });
+    localStorage.setItem(SNAKE_RECORD_KEY, JSON.stringify(records));
+    if(latest){
+      latest.innerHTML = `🎉 <b>${escapeHtml(playerNickname)}</b>님의 ${levelName} 난이도 첫 기록: <b>${snakeTime(newTime)}</b>`;
+    }
+  } else if(newTime < records[existingIndex].time){
+    // 기존 기록보다 더 빠르면 그 자리에서 갱신(덮어쓰기)
+    records[existingIndex] = { ...records[existingIndex], time: newTime, createdAt: Date.now() };
+    localStorage.setItem(SNAKE_RECORD_KEY, JSON.stringify(records));
+    if(latest){
+      latest.innerHTML = `🎉 <b>${escapeHtml(playerNickname)}</b>님의 ${levelName} 난이도 신기록: <b>${snakeTime(newTime)}</b>`;
+    }
+  } else {
+    // 기존 기록보다 느리면 저장하지 않고 기존 최고 기록을 유지
+    if(latest){
+      latest.innerHTML = `${escapeHtml(playerNickname)}님의 이번 기록: <b>${snakeTime(newTime)}</b> (최고 기록 <b>${snakeTime(records[existingIndex].time)}</b> 유지)`;
+    }
+  }
+
+  renderSnakeRecords();
+}
+function renderSnakeRecords(forceShow){
+  const records = snakeRecords();
+  const panel = document.getElementById("recordPanel");
+  if(!panel) return;
+
+  const groups = {
+    easy: document.getElementById("recordsEasy"),
+    normal: document.getElementById("recordsNormal"),
+    hard: document.getElementById("recordsHard")
+  };
+
+  let hasAny = false;
+  ["easy","normal","hard"].forEach(level => {
+    const box = groups[level];
+    if(!box) return;
+
+    const list = records
+      .filter(r => r.difficulty === level)
+      .sort((a,b) => a.time - b.time)
+      .slice(0,10);
+
+    box.innerHTML = list.length
+      ? list.map((r,i) =>
+          `<div class="record-row"><span>${i+1}. ${escapeHtml(r.name)}</span><b>${snakeTime(r.time)}</b></div>`
+        ).join("")
+      : '<div style="color:#9ca3af">아직 기록이 없습니다.</div>';
+
+    if(list.length) hasAny = true;
+  });
+
+  // forceShow가 true면(승리 직후) 기록이 하나도 없어도 패널을 보여준다.
+  if(forceShow || hasAny) panel.style.display = "block";
+}
+
+function showEndOverlay(message, includeRecords){
+  document.getElementById("endMessage").textContent = message;
+  document.getElementById("recordSection").style.display = includeRecords ? "block" : "none";
+  if(includeRecords) renderSnakeRecords(true);
+  document.getElementById("recordPanel").style.display = "block";
+}
+
+function hideRecordPanel(){
+  document.getElementById("recordPanel").style.display = "none";
+}
+
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+const grid=30;
+const tile=canvas.width/grid;
+
+let snake1=[],snake2=[],pear=null;
+let score1=0,score2=0;
+let direction1={x:1,y:0},direction2={x:-1,y:0};
+let nextDirection1={x:1,y:0},nextDirection2={x:-1,y:0};
+let gameRunning=false, mode="2p", difficulty="normal";
+let lastMove1=0,lastMove2=0;
+let aiLastThink=0;
+
+// 충돌 후 1.5초 동안 해당 뱀이 그 자리에서 깜빡이며 정지
+const PENALTY_TIME=1000;
+let penalty1Until=0, penalty2Until=0;
+let penalty1Start=0, penalty2Start=0;
+
+const BASE_SPEED=135;
+const SPEED_UP=13;
+const MIN_SPEED=55;
+
+const AI={
+  easy:{think:300, mistake:.2},
+  normal:{think:230, mistake:.15},
+  hard:{think:100, mistake:.035}
+};
+
+function getSpeed(score){
+  return Math.max(MIN_SPEED,BASE_SPEED-score*SPEED_UP);
+}
+
+function showDifficulty(){
+  document.getElementById("difficulty").style.display="block";
+}
+
+function chooseMode(selected){
+  startGame("2p");
+}
+
+function showMenu(){
+  gameRunning=false;
+  document.getElementById("menu").classList.remove("hidden");
+  document.getElementById("difficulty").style.display="none";
+  document.getElementById("soloNameBox").style.display="none";
+  document.getElementById("soloTimer").style.display="none";
+  document.getElementById("nicknameError").textContent="";
+  hideRecordPanel();
+  playerNickname="";
+}
+
+function startGame(diff){
+  if(diff !== "2p"){
+    if(!playerNickname){
+      document.getElementById("nicknameError").textContent = "먼저 닉네임을 입력해주세요.";
+      document.getElementById("soloNameBox").style.display = "block";
+      document.getElementById("difficulty").style.display = "none";
+      document.getElementById("soloNameInput").focus();
+      return;
+    }
+  }
+
+  mode=(diff==="2p")?"2p":"ai";
+  difficulty=diff;
+  document.getElementById("menu").classList.add("hidden");
+  document.getElementById("p2name").textContent=mode==="ai"?"AI":"2P";
+  restartGame();
+}
+
+function restartGame(){
+  snake1=[
+    {x:5,y:10},{x:4,y:10},{x:3,y:10}
+  ];
+  snake2=[
+    {x:24,y:19},{x:25,y:19},{x:26,y:19}
+  ];
+
+  direction1={x:1,y:0};
+  nextDirection1={x:1,y:0};
+  direction2={x:-1,y:0};
+  nextDirection2={x:-1,y:0};
+
+  score1=0;score2=0;
+  gameRunning=true;
+  lastMove1=performance.now();
+  lastMove2=performance.now();
+  aiLastThink=performance.now();
+  penalty1Until=0;
+  penalty2Until=0;
+  penalty1Start=0;
+  penalty2Start=0;
+
+  hideRecordPanel();
+  lastPearQuadrant=-1;
+
+  if(mode === "ai") startSoloClock();
+  else document.getElementById("soloTimer").style.display = "none";
+
+  document.getElementById("score1").textContent=0;
+  document.getElementById("score2").textContent=0;
+  document.getElementById("message").textContent=
+    mode==="ai"?"🍐 배 5개를 먼저 먹으면 승리!":"🍐 배 5개를 먼저 먹는 사람이 승리!";
+
+  createPear();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+let lastPearQuadrant = -1;
+const SAME_QUADRANT_CHANCE = 0.05; // 정말 희박한 확률로만 같은 구역에 다시 스폰
+
+// 맵을 2x2로 4분할했을 때 좌표가 속한 구역 번호(0~3)
+function quadrantOf(p){
+  const half = grid/2;
+  return (p.y < half ? 0 : 2) + (p.x < half ? 0 : 1);
+}
+
+// 구역 번호로부터 해당 구역의 x/y 범위를 구한다
+function quadrantBounds(q){
+  const half = grid/2;
+  const qx = q % 2, qy = Math.floor(q/2);
+  return {
+    xMin: qx===0 ? 0 : half, xMax: qx===0 ? half-1 : grid-1,
+    yMin: qy===0 ? 0 : half, yMax: qy===0 ? half-1 : grid-1
+  };
+}
+
+function pickPearQuadrant(){
+  if(lastPearQuadrant === -1) return Math.floor(Math.random()*4);
+  if(Math.random() < SAME_QUADRANT_CHANCE) return lastPearQuadrant;
+  const others = [0,1,2,3].filter(q => q !== lastPearQuadrant);
+  return others[Math.floor(Math.random()*others.length)];
+}
+
+const EDGE_BAND = 2;          // 벽에서 이 칸 수 이내면 '벽 근처'로 본다
+const WALL_BIAS_CHANCE = 0.7; // 각 축마다 이 확률로 벽 쪽에 붙여서 스폰한다
+
+// loBound~hiBound 범위 안에서 좌표를 뽑되, towardHigh가 true면 hiBound(=벽) 쪽에,
+// false면 loBound(=벽) 쪽에 확률적으로 붙여서 뽑는다. hiBound/loBound는 이미
+// 실제 지도 바깥벽과 맞닿은 구역의 경계값이어야 한다(quadrantBounds가 그렇게 준다).
+function biasedAxisValue(loBound, hiBound, towardHigh, band, wallBias){
+  const range = hiBound - loBound + 1;
+  const edge = Math.min(band, range);
+
+  if(Math.random() < wallBias){
+    const offset = Math.floor(Math.random()*edge);
+    return towardHigh ? hiBound - offset : loBound + offset;
+  }
+  return loBound + Math.floor(Math.random()*range);
+}
+
+function createPear(){
+  const targetQuadrant = pickPearQuadrant();
+  const bounds = quadrantBounds(targetQuadrant);
+  // 이 구역에서 실제 지도 바깥벽과 맞닿은 쪽은 x는 오른쪽/왼쪽, y는 아래쪽/위쪽 중 하나뿐이다
+  const qx = targetQuadrant % 2, qy = Math.floor(targetQuadrant/2);
+
+  // 우선 정해진 구역 안에서, 벽 쪽에 치우치도록 스폰을 시도한다
+  for(let i=0;i<300;i++){
+    const p={
+      x: biasedAxisValue(bounds.xMin, bounds.xMax, qx===1, EDGE_BAND, WALL_BIAS_CHANCE),
+      y: biasedAxisValue(bounds.yMin, bounds.yMax, qy===1, EDGE_BAND, WALL_BIAS_CHANCE)
+    };
+    if(!snake1.some(s=>s.x===p.x&&s.y===p.y)&&
+       !snake2.some(s=>s.x===p.x&&s.y===p.y)){
+      pear=p;
+      lastPearQuadrant=targetQuadrant;
+      return;
+    }
+  }
+
+  // 해당 구역이 뱀으로 꽉 차있는 등 실패할 경우를 대비한 안전장치: 맵 전체에서 재시도
+  for(let i=0;i<1000;i++){
+    const p={
+      x:Math.floor(Math.random()*grid),
+      y:Math.floor(Math.random()*grid)
+    };
+    if(!snake1.some(s=>s.x===p.x&&s.y===p.y)&&
+       !snake2.some(s=>s.x===p.x&&s.y===p.y)){
+      pear=p;
+      lastPearQuadrant=quadrantOf(p);
+      return;
+    }
+  }
+}
+
+document.addEventListener("keydown",e=>{
+  if(!gameRunning)return;
+
+  if(e.key==="w"||e.key==="W"){
+    if(direction1.y!==1)nextDirection1={x:0,y:-1};
+  }else if(e.key==="s"||e.key==="S"){
+    if(direction1.y!==-1)nextDirection1={x:0,y:1};
+  }else if(e.key==="a"||e.key==="A"){
+    if(direction1.x!==1)nextDirection1={x:-1,y:0};
+  }else if(e.key==="d"||e.key==="D"){
+    if(direction1.x!==-1)nextDirection1={x:1,y:0};
+  }
+
+  if(mode==="2p"){
+    if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.key))
+      e.preventDefault();
+
+    if(e.key==="ArrowUp"&&direction2.y!==1)nextDirection2={x:0,y:-1};
+    if(e.key==="ArrowDown"&&direction2.y!==-1)nextDirection2={x:0,y:1};
+    if(e.key==="ArrowLeft"&&direction2.x!==1)nextDirection2={x:-1,y:0};
+    if(e.key==="ArrowRight"&&direction2.x!==-1)nextDirection2={x:1,y:0};
+  }
+});
+
+function moveSnake(snake,direction){
+  const head={x:snake[0].x+direction.x,y:snake[0].y+direction.y};
+  snake.unshift(head);
+
+  const ate=head.x===pear.x&&head.y===pear.y;
+  if(!ate)snake.pop();
+  return ate;
+}
+
+function hitWall(head){
+  return head.x<0||head.x>=grid||head.y<0||head.y>=grid;
+}
+
+function hitSnake(head,snake){
+  return snake.some(s=>s.x===head.x&&s.y===head.y);
+}
+
+function opposite(a,b){
+  return a.x===-b.x&&a.y===-b.y;
+}
+
+const DIRS4 = [{x:0,y:-1},{x:0,y:1},{x:-1,y:0},{x:1,y:0}];
+
+// 특정 칸에서 시작해 장애물(벽 포함)을 피해 갈 수 있는 빈 칸의 개수를 대략적으로 센다.
+// (제자리에 갇히는 것을 피하기 위한 '공간 감각' 용도. limit으로 계산량을 제한한다.)
+function freeSpaceFrom(start, obstacles, limit){
+  if(start.x<0||start.x>=grid||start.y<0||start.y>=grid) return 0;
+  const key = p => p.x+","+p.y;
+  const blocked = new Set(obstacles.map(key));
+  if(blocked.has(key(start))) return 0;
+
+  const visited = new Set([key(start)]);
+  const queue = [start];
+  let count = 0;
+
+  while(queue.length && count < limit){
+    const cur = queue.shift();
+    count++;
+    for(const d of DIRS4){
+      const n = {x:cur.x+d.x, y:cur.y+d.y};
+      if(n.x<0||n.x>=grid||n.y<0||n.y>=grid) continue;
+      const k = key(n);
+      if(visited.has(k) || blocked.has(k)) continue;
+      visited.add(k);
+      queue.push(n);
+    }
+  }
+  return count;
+}
+
+// 벽/자기 몸(그리고 필요하면 상대 몸)과 부딪히지 않는, 뒤로 돌지 않는 방향 목록
+function getSafeDirections(head, currentDir, ownBody, otherBody, avoidOther){
+  return DIRS4.filter(d => {
+    if(opposite(d, currentDir)) return false;
+    const nx = head.x+d.x, ny = head.y+d.y;
+    if(nx<0||nx>=grid||ny<0||ny>=grid) return false;
+    if(ownBody.some(s=>s.x===nx&&s.y===ny)) return false;
+    if(avoidOther && otherBody.some(s=>s.x===nx&&s.y===ny)) return false;
+    return true;
+  });
+}
+
+// 매 프레임 실행되는 안전망: '생각'하는 시점 사이에도 방금 정한 다음 방향이
+// 갑자기 벽/몸에 부딪히게 됐다면 즉시 다른 안전한 방향으로 바꿔준다.
+// (하 난이도는 생각 주기가 길어서 이게 없으면 벽에 그대로 박아버렸다)
+function aiSafetyOverride(){
+  const head = snake2[0];
+  const avoidPlayer = difficulty !== "easy";
+  const nx = head.x+nextDirection2.x, ny = head.y+nextDirection2.y;
+
+  const hitsWall = nx<0||nx>=grid||ny<0||ny>=grid;
+  const hitsSelf = snake2.some(s=>s.x===nx&&s.y===ny);
+  const hitsPlayer = avoidPlayer && snake1.some(s=>s.x===nx&&s.y===ny);
+
+  if(!hitsWall && !hitsSelf && !hitsPlayer) return;
+
+  const alt = getSafeDirections(head, direction2, snake2.slice(1), snake1, avoidPlayer);
+  if(!alt.length) return;
+
+  const obstacles = snake2.concat(avoidPlayer ? snake1 : []);
+  alt.sort((a,b) =>
+    freeSpaceFrom({x:head.x+b.x,y:head.y+b.y}, obstacles, 30) -
+    freeSpaceFrom({x:head.x+a.x,y:head.y+a.y}, obstacles, 30)
+  );
+  nextDirection2 = {...alt[0]};
+}
+
+// 하: 벽/자기 몸만 피하고, 오직 배를 먹는 데에만 집중한다. 플레이어는 신경쓰지 않는다.
+function aiEasyMove(){
+  const head = snake2[0];
+  const safe = getSafeDirections(head, direction2, snake2.slice(1), snake1, false);
+  if(!safe.length) return;
+
+  safe.sort((a,b) => {
+    const da = Math.abs(pear.x-(head.x+a.x)) + Math.abs(pear.y-(head.y+a.y));
+    const db = Math.abs(pear.x-(head.x+b.x)) + Math.abs(pear.y-(head.y+b.y));
+    return da-db;
+  });
+
+  // 실수를 하더라도 완전히 무작위가 아니라 차선책 정도로만 헤매서,
+  // 배를 먹으려는 의지 자체는 계속 유지한다
+  if(Math.random() < AI.easy.mistake && safe.length > 1){
+    nextDirection2 = {...safe[1]};
+    return;
+  }
+  nextDirection2 = {...safe[0]};
+}
+
+// 중: 벽/자기 몸에 더해 플레이어의 몸도 인식해서 부딪히지 않게 피하고,
+// 플레이어 머리가 가까이 있으면(위협적이면) 거리를 벌리는 회피 기동을 한다.
+function aiNormalMove(){
+  const head = snake2[0];
+  const safe = getSafeDirections(head, direction2, snake2.slice(1), snake1, true);
+  if(!safe.length) return;
+
+  if(Math.random() < AI.normal.mistake){
+    nextDirection2 = {...safe[Math.floor(Math.random()*safe.length)]};
+    return;
+  }
+
+  const playerHead = snake1[0];
+  const threat = Math.abs(playerHead.x-head.x) + Math.abs(playerHead.y-head.y);
+  const evadeWeight = threat <= 5 ? 1.3 : 0.15;
+
+  const scored = safe.map(d => {
+    const nx = head.x+d.x, ny = head.y+d.y;
+    const pearDist = Math.abs(pear.x-nx) + Math.abs(pear.y-ny);
+    const playerDist = Math.abs(playerHead.x-nx) + Math.abs(playerHead.y-ny);
+    return {d, score: -pearDist + playerDist*evadeWeight};
+  });
+
+  scored.sort((a,b) => b.score-a.score);
+  nextDirection2 = {...scored[0].d};
+}
+
+// 상: 하/중 난이도의 판단(배 먹기 + 벽/몸/플레이어 회피)을 모두 포함하면서,
+// 자기 공간이 좁아지는 것을 미리 계산해 스스로 갇히지 않도록 하고,
+// 몸 길이가 상대보다 길어 유리할 때는 플레이어의 예상 이동 경로를 앞질러
+// 막아서거나 부딪히게 유도하는 '사냥' 판단까지 한다.
+function aiHardMove(){
+  const head = snake2[0];
+  const safe = getSafeDirections(head, direction2, snake2.slice(1), snake1, true);
+  if(!safe.length) return;
+
+  if(Math.random() < AI.hard.mistake){
+    nextDirection2 = {...safe[Math.floor(Math.random()*safe.length)]};
+    return;
+  }
+
+  const playerHead = snake1[0];
+  const threat = Math.abs(playerHead.x-head.x) + Math.abs(playerHead.y-head.y);
+  const evadeWeight = threat <= 5 ? 1.3 : 0.15;
+
+  // 플레이어가 지금 방향으로 두 칸 더 갔을 때의 위치를 예측해 매복/차단에 사용
+  const predicted = {
+    x: playerHead.x + direction1.x*2,
+    y: playerHead.y + direction1.y*2
+  };
+  const canHunt = snake2.length >= snake1.length && threat <= 8;
+  const obstacles = snake2.concat(snake1);
+
+  const scored = safe.map(d => {
+    const nx = head.x+d.x, ny = head.y+d.y;
+    const pearDist = Math.abs(pear.x-nx) + Math.abs(pear.y-ny);
+    const playerDist = Math.abs(playerHead.x-nx) + Math.abs(playerHead.y-ny);
+    const space = freeSpaceFrom({x:nx,y:ny}, obstacles, 30);
+
+    let score = -pearDist;               // 하 난이도: 배 먹기
+    score += playerDist*evadeWeight;      // 중 난이도: 위협적이면 회피
+    score += space*0.05;                  // 상 난이도 추가: 스스로 갇히지 않기
+
+    if(canHunt){                          // 상 난이도 추가: 유리할 때 추격/차단
+      const interceptDist = Math.abs(predicted.x-nx) + Math.abs(predicted.y-ny);
+      score += (10-interceptDist)*0.8;
+    }
+
+    return {d, score};
+  });
+
+  scored.sort((a,b) => b.score-a.score);
+  nextDirection2 = {...scored[0].d};
+}
+
+function aiChooseDirection(){
+  if(difficulty==="easy") aiEasyMove();
+  else if(difficulty==="normal") aiNormalMove();
+  else aiHardMove();
+}
+
+function setPenalty(player, timestamp) {
+  const until = timestamp + PENALTY_TIME;
+
+  if (player === 1) {
+    penalty1Start = timestamp;
+    penalty1Until = until;
+
+    // 1P는 처음 시작 위치로 리스폰
+    snake1 = [
+      {x:5,y:10},{x:4,y:10},{x:3,y:10}
+    ];
+
+    // 시작 위치에서 벽/상대방과 충돌하지 않도록 중앙 방향으로 재시작
+    direction1 = {x:1,y:0};
+    nextDirection1 = {x:1,y:0};
+    lastMove1 = timestamp;
+  } else {
+    penalty2Start = timestamp;
+    penalty2Until = until;
+
+    // AI/2P도 똑같이 처음 시작 위치로 리스폰
+    snake2 = [
+      {x:24,y:19},{x:25,y:19},{x:26,y:19}
+    ];
+
+    direction2 = {x:-1,y:0};
+    nextDirection2 = {x:-1,y:0};
+    lastMove2 = timestamp;
+    aiLastThink = timestamp;
+  }
+}
+
+function checkHeadToHead(timestamp) {
+  const h1 = snake1[0];
+  const h2 = snake2[0];
+
+  return h1.x === h2.x && h1.y === h2.y;
+}
+
+function checkCollision1(timestamp) {
+  const h = snake1[0];
+
+  if (hitWall(h) || hitSnake(h, snake1.slice(1)) || hitSnake(h, snake2)) {
+    score1 = 0;
+    updateScore();
+    setPenalty(1, timestamp);
+
+    document.getElementById("message").textContent =
+      "💥 1P 충돌! 점수가 초기화되고 처음 위치에서 1초 후 다시 시작합니다.";
+    return true;
+  }
+  return false;
+}
+
+function checkCollision2(timestamp) {
+  const h = snake2[0];
+
+  if (hitWall(h) || hitSnake(h, snake2.slice(1)) || hitSnake(h, snake1)) {
+    score2 = 0;
+    updateScore();
+    setPenalty(2, timestamp);
+
+    document.getElementById("message").textContent =
+      `💥 ${mode==="ai" ? "AI" : "2P"} 충돌! 점수가 초기화되고 처음 위치에서 1초 후 다시 시작합니다.`;
+    return true;
+  }
+  return false;
+}
+
+function gameLoop(timestamp){
+  if(!gameRunning) return;
+  tickSoloClock(timestamp);
+
+  // AI는 움직이는 중일 때만 방향을 계산
+  if(mode==="ai" && timestamp-aiLastThink>=AI[difficulty].think &&
+     timestamp>=penalty2Until){
+    aiChooseDirection();
+    aiLastThink=timestamp;
+  }
+
+  // 두 머리가 충돌한 경우: 둘 다 점수 0 + 둘 다 처음 위치로 리스폰
+  if(checkHeadToHead(timestamp)){
+    score1 = 0;
+    score2 = 0;
+    updateScore();
+
+    setPenalty(1, timestamp);
+    setPenalty(2, timestamp);
+
+    document.getElementById("message").textContent =
+      "💥 머리끼리 충돌! 두 플레이어의 점수가 초기화되고 처음 위치에서 1초 후 다시 시작합니다.";
+
+    draw();
+    requestAnimationFrame(gameLoop);
+    return;
+  }
+
+  if(timestamp-lastMove1>=getSpeed(score1) && timestamp>=penalty1Until){
+    direction1={...nextDirection1};
+    const ate1=moveSnake(snake1,direction1);
+    lastMove1=timestamp;
+
+    if(ate1){
+      score1++;
+      updateScore();
+
+      if(score1>=5){
+        if(mode==="ai"){
+          saveSoloRecord();
+          endGame("🎉 승리! AI보다 먼저 배 5개를 먹었습니다! 🍐", true);
+        }else{
+          endGame("🟢 1P 승리! 배 5개를 먼저 먹었습니다! 🍐");
+        }
+        return;
+      }
+      createPear();
+    }
+
+    if(checkHeadToHead(timestamp)){
+      score1=0;
+      score2=0;
+      updateScore();
+      setPenalty(1,timestamp);
+      setPenalty(2,timestamp);
+      document.getElementById("message").textContent =
+        "💥 머리끼리 충돌! 두 플레이어의 점수가 초기화되고 처음 위치에서 1초 후 다시 시작합니다.";
+      draw();
+      requestAnimationFrame(gameLoop);
+      return;
+    }
+
+    checkCollision1(timestamp);
+  }
+
+  if(mode==="ai" && timestamp-aiLastThink>=AI[difficulty].think &&
+     timestamp>=penalty2Until){
+    aiChooseDirection();
+    aiLastThink=timestamp;
+  }
+
+  if(mode==="ai" && timestamp>=penalty2Until){
+    aiSafetyOverride();
+  }
+
+  if(timestamp-lastMove2>=getSpeed(score2) && timestamp>=penalty2Until){
+    direction2={...nextDirection2};
+    const ate2=moveSnake(snake2,direction2);
+    lastMove2=timestamp;
+
+    if(ate2){
+      score2++;
+      updateScore();
+
+      if(score2>=5){
+        endGame("💻 AI 승리! AI가 배 5개를 먼저 먹었습니다! 🍐");
+        return;
+      }
+      createPear();
+    }
+
+    if(checkHeadToHead(timestamp)){
+      score1=0;
+      score2=0;
+      updateScore();
+      setPenalty(1,timestamp);
+      setPenalty(2,timestamp);
+      document.getElementById("message").textContent =
+        "💥 머리끼리 충돌! 두 플레이어의 점수가 초기화되고 처음 위치에서 1초 후 다시 시작합니다.";
+      draw();
+      requestAnimationFrame(gameLoop);
+      return;
+    }
+
+    checkCollision2(timestamp);
+  }
+
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+function updateScore(){
+  document.getElementById("score1").textContent=score1;
+  document.getElementById("score2").textContent=score2;
+}
+
+function drawSnake(snake,color,direction){
+  snake.forEach((s,index)=>{
+    const cx=s.x*tile+tile/2;
+    const cy=s.y*tile+tile/2;
+    const r=index===0?13:12;
+
+    ctx.fillStyle=color;
+    ctx.beginPath();
+    ctx.arc(cx,cy,r,0,Math.PI*2);
+    ctx.fill();
+
+    // 몸통 사이를 연결해 한 마리의 둥근 뱀처럼 보이게 합니다.
+    if(index>0){
+      ctx.beginPath();
+      ctx.arc(cx,cy,13,0,Math.PI*2);
+      ctx.fill();
+    }
+
+    if(index===0){
+      let ex=0,ey=0;
+      if(direction.x!==0)ex=direction.x*4;
+      if(direction.y!==0)ey=direction.y*4;
+
+      let e1x,e1y,e2x,e2y;
+      if(direction.x!==0){
+        e1x=cx+ex;e1y=cy-5;
+        e2x=cx+ex;e2y=cy+5;
+      }else{
+        e1x=cx-5;e1y=cy+ey;
+        e2x=cx+5;e2y=cy+ey;
+      }
+
+      ctx.fillStyle="white";
+      ctx.beginPath();ctx.arc(e1x,e1y,3.5,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(e2x,e2y,3.5,0,Math.PI*2);ctx.fill();
+
+      ctx.fillStyle="#111827";
+      ctx.beginPath();ctx.arc(e1x+direction.x*1.2,e1y+direction.y*1.2,1.6,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(e2x+direction.x*1.2,e2y+direction.y*1.2,1.6,0,Math.PI*2);ctx.fill();
+    }
+  });
+}
+
+function drawPear(){
+  const x=pear.x*tile+tile/2;
+  const y=pear.y*tile+tile/2;
+
+  ctx.fillStyle="#facc15";
+  ctx.beginPath();
+  ctx.moveTo(x,y-10);
+  ctx.bezierCurveTo(x-9,y-7,x-10,y+5,x-5,y+10);
+  ctx.bezierCurveTo(x,y+14,x+9,y+10,x+10,y+2);
+  ctx.bezierCurveTo(x+11,y-5,x+4,y-7,x+3,y-10);
+  ctx.bezierCurveTo(x+1,y-13,x-3,y-13,x,y-10);
+  ctx.fill();
+
+  ctx.strokeStyle="#78350f";
+  ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(x,y-10);ctx.lineTo(x+2,y-14);ctx.stroke();
+
+  ctx.fillStyle="#22c55e";
+  ctx.beginPath();
+  ctx.ellipse(x+6,y-13,5,2.5,-.4,0,Math.PI*2);
+  ctx.fill();
+}
+
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  ctx.strokeStyle="#263244";
+  ctx.lineWidth=1;
+  for(let i=0;i<=grid;i++){
+    ctx.beginPath();ctx.moveTo(i*tile,0);ctx.lineTo(i*tile,canvas.height);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(0,i*tile);ctx.lineTo(canvas.width,i*tile);ctx.stroke();
+  }
+
+  drawPear();
+
+  const now=performance.now();
+  // 1초 동안 깜빡임: 처음에는 0.5초 간격, 시간이 지날수록 점점 빠르게
+  const blinkInterval1=Math.max(80,500-((now-penalty1Start)/PENALTY_TIME)*420);
+  const blinkInterval2=Math.max(80,500-((now-penalty2Start)/PENALTY_TIME)*420);
+  const blink1=now<penalty1Until && Math.floor((now-penalty1Start)/blinkInterval1)%2===0;
+  const blink2=now<penalty2Until && Math.floor((now-penalty2Start)/blinkInterval2)%2===0;
+
+  if(!blink1) drawSnake(snake1,"#22c55e",direction1);
+  if(!blink2) drawSnake(snake2,"#ef4444",direction2);
+
+  if(now<penalty1Until || now<penalty2Until){
+    ctx.fillStyle="rgba(255,255,255,.08)";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+  }
+}
+
+function endGame(message, showRecords){
+  gameRunning=false;
+  document.getElementById("message").textContent=message;
+  draw();
+  showEndOverlay(message, !!showRecords);
+}
+
+renderSnakeRecords();
+
+// 처음에는 메뉴만 표시합니다.
+// 게임은 메뉴에서 모드를 선택했을 때 시작됩니다.
+draw();
+
+function respawnPlayer(playerNum, directionHint = null) {
+  const s = playerNum === 1 ? snake1 : snake2;
+
+  if (playerNum === 1) {
+    s.body = [{x:5,y:15},{x:4,y:15},{x:3,y:15}];
+    s.direction = directionHint || "right";
+    s.nextDirection = s.direction;
+    penalty1Start = performance.now();
+    penalty1Until = penalty1Start + PENALTY_TIME;
+    respawn1Start = penalty1Start;
+    respawn1Until = penalty1Until;
+  } else {
+    s.body = [{x:24,y:15},{x:25,y:15},{x:26,y:15}];
+    s.direction = directionHint || "left";
+    s.nextDirection = s.direction;
+    penalty2Start = performance.now();
+    penalty2Until = penalty2Start + PENALTY_TIME;
+    respawn2Start = penalty2Start;
+    respawn2Until = penalty2Until;
+  }
+}
+
+function directionTowardCenter(head) {
+  const cx = Math.floor(COLS / 2), cy = Math.floor(ROWS / 2);
+  const dx = cx - head.x, dy = cy - head.y;
+  if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? "right" : "left";
+  return dy >= 0 ? "down" : "up";
+}
+</script>
+
+</body>
+</html>
