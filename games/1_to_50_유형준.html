@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>1 to 50 타임어택 챌린지</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Inter & Outfit Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Outfit:wght@700;900&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            display: ['Outfit', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      touch-action: manipulation;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    /* Fixed 5x5 Grid aspect ratio container to prevent tile size shifts */
+    .grid-container {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-rows: repeat(5, minmax(0, 1fr));
+      gap: 0.5rem;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+    }
+
+    /* Shake animation on wrong click */
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-8px); }
+      40%, 80% { transform: translateX(8px); }
+    }
+    .animate-shake {
+      animation: shake 0.35s ease-in-out;
+    }
+
+    /* Red screen flash overlay */
+    @keyframes redFlash {
+      0% { opacity: 0.65; }
+      100% { opacity: 0; }
+    }
+    .animate-flash {
+      animation: redFlash 0.35s ease-out forwards;
+    }
+
+    /* Obstacle toast alert animation */
+    @keyframes alertPop {
+      0% { transform: translateY(-30px) scale(0.85); opacity: 0; }
+      15% { transform: translateY(0) scale(1.03); opacity: 1; }
+      85% { transform: translateY(0) scale(1); opacity: 1; }
+      100% { transform: translateY(-20px) scale(0.9); opacity: 0; }
+    }
+    .animate-obstacle-toast {
+      animation: alertPop 2.0s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+
+    /* Blind trap overlay fade */
+    @keyframes blindFade {
+      0% { opacity: 0; backdrop-filter: blur(0px); }
+      20% { opacity: 0.98; backdrop-filter: blur(14px); }
+      80% { opacity: 0.98; backdrop-filter: blur(14px); }
+      100% { opacity: 0; backdrop-filter: blur(0px); }
+    }
+    .animate-blind {
+      animation: blindFade 1.2s ease-in-out forwards;
+    }
+
+    /* Time penalty floating indicator */
+    @keyframes penaltyPop {
+      0% { opacity: 0; transform: translateY(0) scale(0.5); }
+      30% { opacity: 1; transform: translateY(-15px) scale(1.2); }
+      100% { opacity: 0; transform: translateY(-35px) scale(1); }
+    }
+    .animate-penalty {
+      animation: penaltyPop 1.2s ease-out forwards;
+    }
+
+    /* Modal pop in */
+    @keyframes modalIn {
+      from { transform: scale(0.92) translateY(10px); opacity: 0; }
+      to { transform: scale(1) translateY(0); opacity: 1; }
+    }
+    .animate-modal {
+      animation: modalIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    /* Countdown number bounce */
+    @keyframes popIn {
+      0% { transform: scale(0.2); opacity: 0; }
+      60% { transform: scale(1.2); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .animate-pop {
+      animation: popIn 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex items-center justify-center p-3 sm:p-6 overflow-x-hidden">
+
+  <!-- Red Flash Overlay for Wrong Clicks -->
+  <div id="flashOverlay" class="fixed inset-0 bg-rose-600 pointer-events-none opacity-0 z-50"></div>
+
+  <!-- Blind Trap Visual Overlay -->
+  <div id="blindOverlay" class="fixed inset-0 bg-slate-950/95 pointer-events-none opacity-0 z-40 flex flex-col items-center justify-center transition-all">
+    <i class="fa-solid fa-eye-slash text-amber-400 text-5xl mb-2 animate-bounce"></i>
+    <div class="text-amber-300 font-extrabold text-xl tracking-wider">시야 차단 방해!</div>
+    <div class="text-slate-400 text-xs mt-1">1초 동안 보드가 보이지 않습니다</div>
+  </div>
+
+  <!-- Time Penalty Floating Text Indicator -->
+  <div id="penaltyOverlay" class="fixed inset-0 pointer-events-none z-40 flex items-center justify-center opacity-0">
+    <span class="text-rose-500 font-black text-4xl sm:text-5xl drop-shadow-[0_4px_12px_rgba(244,63,94,0.6)] animate-penalty">+2.0s</span>
+  </div>
+
+  <!-- Main Responsive Container -->
+  <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-7 shadow-2xl relative overflow-hidden">
+    
+    <!-- Ambient Background Glows -->
+    <div class="absolute -top-24 -left-24 w-48 h-48 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute -bottom-24 -right-24 w-48 h-48 bg-purple-500/15 rounded-full blur-3xl pointer-events-none"></div>
+
+    <!-- ==================== 1. MAIN MENU SCREEN ==================== -->
+    <div id="mainScreen" class="flex flex-col items-center text-center space-y-4 py-1">
+      
+      <!-- Title Header -->
+      <div class="space-y-1">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-semibold tracking-wide mb-1">
+          <i class="fa-solid fa-bolt text-amber-400"></i> 스피드 타임어택 챌린지
+        </div>
+        <h1 class="text-3xl sm:text-4xl font-black font-display tracking-tight bg-gradient-to-r from-indigo-400 via-sky-300 to-purple-400 bg-clip-text text-transparent">
+          1 to 50
+        </h1>
+        <p class="text-slate-400 text-xs sm:text-sm font-medium">1부터 50까지 숫자를 순서대로 터치하세요!</p>
+      </div>
+
+      <!-- Player Name Input Card -->
+      <div class="w-full bg-slate-950/70 border border-slate-800 rounded-2xl p-3.5 text-left space-y-1.5 shadow-inner">
+        <label for="playerNameInput" class="text-[11px] text-slate-400 font-bold uppercase tracking-wider flex items-center justify-between">
+          <span><i class="fa-solid fa-user-tag text-indigo-400 mr-1.5"></i>플레이어 이름</span>
+          <span class="text-[10px] text-slate-500 font-normal">랭킹 저장용</span>
+        </label>
+        <div class="relative">
+          <input type="text" id="playerNameInput" maxlength="12" placeholder="이름을 입력하세요" value=""
+            class="w-full bg-slate-900 border border-slate-700 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 rounded-xl px-3.5 py-2 text-slate-100 font-bold text-sm outline-none transition-all placeholder:text-slate-600 placeholder:font-normal">
+        </div>
+      </div>
+
+      <!-- Mode Selector Buttons -->
+      <div class="w-full space-y-1.5 text-left">
+        <div class="text-[11px] text-slate-400 font-bold uppercase tracking-wider px-1">
+          <i class="fa-solid fa-gamepad text-indigo-400 mr-1"></i> 게임 모드 선택
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <!-- Classic Mode Card -->
+          <button id="modeBtnClassic" onclick="selectMode('classic')"
+            class="p-3 rounded-2xl border transition-all text-left flex flex-col justify-between bg-indigo-600/20 border-indigo-500 text-indigo-200 shadow-lg shadow-indigo-950/40">
+            <div class="flex items-center justify-between w-full mb-1">
+              <span class="font-black text-sm">클래식 모드</span>
+              <i class="fa-solid fa-circle-check text-indigo-400 text-sm"></i>
+            </div>
+            <p class="text-[10px] text-slate-300 font-medium leading-tight">순수한 속도 대결<br>(방해 요소 없음)</p>
+          </button>
+
+          <!-- Interruption Mode Card -->
+          <button id="modeBtnGimmick" onclick="selectMode('gimmick')"
+            class="p-3 rounded-2xl border transition-all text-left flex flex-col justify-between bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700">
+            <div class="flex items-center justify-between w-full mb-1">
+              <span class="font-black text-sm">방해 모드</span>
+              <i class="fa-solid fa-circle text-slate-700 text-sm"></i>
+            </div>
+            <p class="text-[10px] text-slate-400 font-medium leading-tight">함정 2회 발동<br>(셔플 / 암전 / +2초)</p>
+          </button>
+        </div>
+      </div>
+
+      <!-- Current Mode Top Record Widget -->
+      <div class="w-full bg-slate-800/80 border border-slate-700/80 rounded-2xl p-3 flex items-center justify-between shadow-md">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
+            <i class="fa-solid fa-trophy text-base"></i>
+          </div>
+          <div class="text-left">
+            <div class="text-[10px] text-slate-400 font-medium"><span id="bestModeLabel" class="text-indigo-300 font-bold">클래식</span> 최고 기록</div>
+            <div id="mainBestDisplay" class="text-base font-mono font-black text-amber-400">-- : --</div>
+          </div>
+        </div>
+        <div id="mainBestPlayer" class="text-xs text-slate-300 font-semibold bg-slate-900/80 px-2.5 py-1 rounded-lg border border-slate-800 truncate max-w-[100px]">
+          -
+        </div>
+      </div>
+
+      <!-- Main Action Buttons -->
+      <div class="w-full space-y-2 pt-1">
+        <button onclick="requestGameStart()" class="w-full py-3.5 bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 active:scale-[0.98] text-white font-extrabold text-base rounded-2xl shadow-lg shadow-indigo-600/30 transition-all flex items-center justify-center gap-2">
+          <i class="fa-solid fa-play"></i> 게임 시작
+        </button>
+
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="openModal('recordsModal')" class="py-2.5 bg-slate-800 hover:bg-slate-700 active:scale-[0.98] text-slate-200 font-bold rounded-xl border border-slate-700 transition-all flex items-center justify-center gap-2 text-xs">
+            <i class="fa-solid fa-ranking-star text-amber-400"></i> 기록 보기
+          </button>
+
+          <button onclick="openModal('howtoModal')" class="py-2.5 bg-slate-800 hover:bg-slate-700 active:scale-[0.98] text-slate-200 font-bold rounded-xl border border-slate-700 transition-all flex items-center justify-center gap-2 text-xs">
+            <i class="fa-solid fa-circle-info text-sky-400"></i> 규칙 설명
+          </button>
+        </div>
+      </div>
+
+      <!-- Audio Toggle Control -->
+      <div class="pt-0.5">
+        <button id="soundToggleBtn" onclick="toggleSound()" class="text-[11px] text-slate-400 hover:text-slate-200 flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-950/50 border border-slate-800 transition-all">
+          <i id="soundIcon" class="fa-solid fa-volume-high text-indigo-400"></i>
+          <span id="soundText">사운드 켜짐</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ==================== 2. GAME PLAY SCREEN ==================== -->
+    <div id="gameScreen" class="hidden flex-col space-y-3 relative">
+      
+      <!-- Obstacle Toast Notification Banner -->
+      <div id="obstacleToast" class="hidden absolute top-16 left-1/2 -translate-x-1/2 w-11/12 z-30 bg-rose-600 text-white font-extrabold text-xs py-2.5 px-3.5 rounded-xl shadow-xl shadow-rose-950/80 border border-rose-400 text-center animate-obstacle-toast">
+        <i class="fa-solid fa-triangle-exclamation mr-1.5"></i>
+        <span id="obstacleToastText">방해 요소 발생!</span>
+      </div>
+
+      <!-- Dashboard Status Bar -->
+      <div class="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-3 flex items-center justify-between shadow-md">
+        <!-- Target Number -->
+        <div class="flex flex-col">
+          <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">목표 숫자</span>
+          <span id="targetDisplay" class="text-2xl font-black text-indigo-400">1</span>
+        </div>
+
+        <!-- Timer Display -->
+        <div class="flex flex-col items-center">
+          <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">경과 시간</span>
+          <span id="timerDisplay" class="text-2xl font-mono font-black text-amber-300">0.00s</span>
+        </div>
+
+        <!-- Hearts HP Display -->
+        <div class="flex flex-col items-end">
+          <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">HP (기회)</span>
+          <div id="hpHearts" class="flex gap-1 text-sm text-rose-500">
+            <i class="fa-solid fa-heart"></i>
+            <i class="fa-solid fa-heart"></i>
+            <i class="fa-solid fa-heart"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Player Info Bar -->
+      <div class="flex items-center justify-between px-1 text-xs">
+        <span class="text-slate-400">플레이어: <strong id="inGamePlayerName" class="text-indigo-300">익명</strong></span>
+        <span id="inGameModeBadge" class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+          클래식 모드
+        </span>
+      </div>
+
+      <!-- Fixed 5x5 Grid Board Container -->
+      <div class="relative w-full">
+        <div id="gameBoard" class="grid-container p-2 bg-slate-950/80 rounded-2xl border border-slate-800 shadow-inner">
+          <!-- 25 Fixed Size Tile Slots rendered dynamically -->
+        </div>
+
+        <!-- 3-Second Countdown Overlay -->
+        <div id="countdownOverlay" class="absolute inset-0 bg-slate-950/90 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center z-20">
+          <div id="countdownCircle" class="w-28 h-28 rounded-full border-4 border-indigo-500/40 flex items-center justify-center bg-indigo-950/60 shadow-xl shadow-indigo-500/20">
+            <span id="countdownText" class="text-5xl font-black text-indigo-400 animate-pop">3</span>
+          </div>
+          <p class="text-slate-400 text-xs font-bold mt-4 uppercase tracking-widest">숫자 1에 손가락을 준비하세요!</p>
+        </div>
+      </div>
+
+      <!-- Footer Navigation Controls -->
+      <div class="flex items-center justify-between pt-0.5">
+        <button onclick="goToMainMenu()" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl border border-slate-700 transition-all flex items-center gap-1.5">
+          <i class="fa-solid fa-house"></i> 메인 메뉴로
+        </button>
+
+        <span class="text-[11px] text-slate-500 font-medium">오답 클릭 시 HP 1 차감</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ==================== MODALS & OVERLAYS ==================== -->
+
+  <!-- 1. GAME CLEAR RESULT MODAL -->
+  <div id="clearModal" class="modal-overlay hidden fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-sm w-full text-center space-y-4 animate-modal shadow-2xl relative overflow-hidden">
+      
+      <!-- New Best Record Badge -->
+      <div id="newRecordBadge" class="hidden absolute top-4 right-4 bg-amber-500 text-slate-950 font-black text-[10px] px-2.5 py-1 rounded-full uppercase tracking-wider animate-bounce shadow-md">
+        NEW RECORD!
+      </div>
+
+      <div class="w-16 h-16 bg-emerald-500/20 border border-emerald-500/40 rounded-2xl flex items-center justify-center text-emerald-400 text-3xl mx-auto">
+        <i class="fa-solid fa-flag-checkered"></i>
+      </div>
+
+      <div class="space-y-1">
+        <h2 class="text-2xl font-black text-emerald-400">CHALLENGE CLEAR!</h2>
+        <p class="text-xs text-slate-400"><strong id="clearPlayerName" class="text-indigo-300">플레이어</strong> 님의 성공 기록</p>
+      </div>
+
+      <div class="bg-slate-950/80 rounded-2xl p-4 border border-slate-800 space-y-1">
+        <div class="text-xs text-slate-400 font-semibold flex items-center justify-center gap-1.5">
+          <span id="clearModeTag" class="text-indigo-300 font-bold">[클래식 모드]</span> 최종 완주 기록
+        </div>
+        <div id="clearFinalTime" class="text-3xl font-mono font-black text-amber-300">00.00s</div>
+      </div>
+
+      <!-- Result Action Buttons -->
+      <div class="space-y-2 pt-1">
+        <button onclick="requestGameStart()" class="w-full py-3.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 active:scale-[0.98] text-white font-extrabold rounded-2xl shadow-lg shadow-emerald-600/30 transition-all text-sm flex items-center justify-center gap-2">
+          <i class="fa-solid fa-rotate-right"></i> 다시하기 (재도전)
+        </button>
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="openModal('recordsModal')" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl border border-slate-700 transition-all text-xs flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-trophy text-amber-400"></i> 랭킹 보기
+          </button>
+          <button onclick="goToMainMenu()" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl border border-slate-700 transition-all text-xs flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-house"></i> 메인 메뉴로
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. GAME OVER RESULT MODAL -->
+  <div id="gameOverModal" class="modal-overlay hidden fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-sm w-full text-center space-y-4 animate-modal shadow-2xl">
+      <div class="w-16 h-16 bg-rose-500/20 border border-rose-500/40 rounded-2xl flex items-center justify-center text-rose-500 text-3xl mx-auto">
+        <i class="fa-solid fa-heart-crack"></i>
+      </div>
+
+      <div class="space-y-1">
+        <h2 class="text-2xl font-black text-rose-500">GAME OVER!</h2>
+        <p class="text-sm text-slate-300 font-semibold">HP를 모두 소모했습니다.</p>
+        <p class="text-xs text-slate-500">잘못된 타일을 3번 터치하여 기록이 저장되지 않습니다.</p>
+      </div>
+
+      <div class="bg-slate-950/80 rounded-2xl p-3 border border-slate-800 text-xs text-slate-400">
+        모드: <strong id="overModeTag" class="text-slate-200">클래식 모드</strong> | 도전자: <strong id="overPlayerName" class="text-slate-200">익명</strong>
+      </div>
+
+      <!-- Result Action Buttons -->
+      <div class="space-y-2 pt-1">
+        <button onclick="requestGameStart()" class="w-full py-3.5 bg-gradient-to-r from-rose-600 via-pink-600 to-indigo-600 hover:from-rose-500 hover:to-indigo-500 active:scale-[0.98] text-white font-extrabold rounded-2xl shadow-lg shadow-rose-600/30 transition-all text-sm flex items-center justify-center gap-2">
+          <i class="fa-solid fa-rotate-right"></i> 다시하기 (재도전)
+        </button>
+        <button onclick="goToMainMenu()" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl border border-slate-700 transition-all text-xs flex items-center justify-center gap-1.5">
+          <i class="fa-solid fa-house"></i> 메인 메뉴로
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. SEPARATE LEADERBOARDS MODAL -->
+  <div id="recordsModal" class="modal-overlay hidden fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 max-w-sm w-full space-y-3 animate-modal shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-trophy text-amber-400 text-base"></i>
+          <h3 class="font-extrabold text-base text-slate-100">명예의 전당 Top 5</h3>
+        </div>
+        <button onclick="closeModal('recordsModal')" class="text-slate-400 hover:text-white p-1">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+
+      <!-- Mode Leaderboard Tabs -->
+      <div class="grid grid-cols-2 p-1 bg-slate-950 rounded-xl border border-slate-800 text-xs font-bold">
+        <button id="tabBtnClassic" onclick="switchRecordTab('classic')"
+          class="py-1.5 rounded-lg transition-all text-center bg-indigo-600 text-white shadow-md">
+          클래식 랭킹
+        </button>
+        <button id="tabBtnGimmick" onclick="switchRecordTab('gimmick')"
+          class="py-1.5 rounded-lg transition-all text-center text-slate-400 hover:text-slate-200">
+          방해 모드 랭킹
+        </button>
+      </div>
+
+      <!-- Top 5 Leaderboard List Container -->
+      <div id="recordsList" class="space-y-2 max-h-56 overflow-y-auto pr-1">
+        <!-- populated dynamically -->
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="pt-2 flex items-center justify-between gap-2 border-t border-slate-800">
+        <button onclick="clearCurrentModeRecords()" class="text-[11px] text-rose-400 hover:text-rose-300 font-semibold px-2 py-1 rounded-lg hover:bg-rose-500/10 transition-all">
+          <i class="fa-regular fa-trash-can"></i> 현재 랭킹 초기화
+        </button>
+        <button onclick="closeModal('recordsModal')" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition-all">
+          닫기
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. HOW TO PLAY MODAL -->
+  <div id="howtoModal" class="modal-overlay hidden fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 max-w-sm w-full space-y-3.5 animate-modal shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-book-open text-sky-400 text-base"></i>
+          <h3 class="font-extrabold text-base text-slate-100">게임 규칙 안내</h3>
+        </div>
+        <button onclick="closeModal('howtoModal')" class="text-slate-400 hover:text-white p-1">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+
+      <div class="space-y-2 text-xs text-slate-300 leading-relaxed max-h-72 overflow-y-auto pr-1">
+        <div class="bg-slate-950/70 p-3 rounded-xl border border-slate-800 space-y-1">
+          <div class="font-bold text-indigo-300 flex items-center gap-1.5">
+            <i class="fa-solid fa-play text-indigo-400"></i> 기본 진행
+          </div>
+          <p class="text-slate-400">5x5 그리드에 무작위 배치된 1부터 50까지의 숫자를 순서대로 터치하여 없둡니다.</p>
+        </div>
+
+        <div class="bg-slate-950/70 p-3 rounded-xl border border-slate-800 space-y-1">
+          <div class="font-bold text-rose-400 flex items-center gap-1.5">
+            <i class="fa-solid fa-heart text-rose-500"></i> HP 시스템 (기회 3회)
+          </div>
+          <p class="text-slate-400">목표 숫자가 아닌 오답을 누르면 HP가 1 차감되며, 3회 누적 시 게임 오버됩니다.</p>
+        </div>
+
+        <div class="bg-slate-950/70 p-3 rounded-xl border border-slate-800 space-y-1">
+          <div class="font-bold text-amber-300 flex items-center gap-1.5">
+            <i class="fa-solid fa-triangle-exclamation text-amber-400"></i> 방해 모드 (함정 2회)
+          </div>
+          <p class="text-slate-400">게임 중 무작위 목표 숫자 지점에서 딱 2번 함정이 발동합니다:</p>
+          <ul class="list-disc list-inside text-slate-400 pl-1 space-y-0.5">
+            <li><strong>타일 재배치</strong>: 현재 남아있는 타일 위치 셔플</li>
+            <li><strong>1초 시야 차단</strong>: 1초간 화면 암전</li>
+            <li><strong>+2.0초 시간 추가</strong>: 최종 경과 시간에 2초 추가</li>
+          </ul>
+        </div>
+      </div>
+
+      <button onclick="closeModal('howtoModal')" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition-all">
+        확인했습니다
+      </button>
+    </div>
+  </div>
+
+  <!-- 5. CONFIRMATION MODAL -->
+  <div id="confirmModal" class="modal-overlay hidden fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 max-w-xs w-full text-center space-y-3.5 animate-modal shadow-2xl">
+      <i class="fa-solid fa-triangle-exclamation text-3xl text-amber-400"></i>
+      <div class="space-y-1">
+        <h4 id="confirmTitle" class="font-bold text-slate-100 text-sm">랭킹을 초기화할까요?</h4>
+        <p id="confirmDesc" class="text-xs text-slate-400">선택한 모드의 저장된 랭킹 기록이 삭제됩니다.</p>
+      </div>
+      <div class="flex gap-2 pt-1">
+        <button id="confirmCancelBtn" class="w-1/2 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl">취소</button>
+        <button id="confirmOkBtn" class="w-1/2 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl">초기화</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ===================================================================
+       WEB AUDIO SYNTHESIZER SOUND ENGINE
+       =================================================================== */
+    let soundEnabled = true;
+    let audioCtx = null;
+
+    function getAudioContext() {
+      if (!audioCtx) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) {
+          audioCtx = new AudioContext();
+        }
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      const icon = document.getElementById('soundIcon');
+      const text = document.getElementById('soundText');
+      if (soundEnabled) {
+        icon.className = 'fa-solid fa-volume-high text-indigo-400';
+        text.textContent = '사운드 켜짐';
+        playTone(523.25, 'sine', 0.08);
+      } else {
+        icon.className = 'fa-solid fa-volume-xmark text-slate-500';
+        text.textContent = '사운드 끔';
+      }
+    }
+
+    function playTone(freq, type = 'sine', duration = 0.08, gainValue = 0.15) {
+      if (!soundEnabled) return;
+      try {
+        const ctx = getAudioContext();
+        if (!ctx) return;
+
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, ctx.currentTime);
+
+        gain.gain.setValueAtTime(gainValue, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start();
+        osc.stop(ctx.currentTime + duration);
+      } catch (e) {
+        console.warn('Audio synthesis error:', e);
+      }
+    }
+
+    function playTapSound(targetNum) {
+      const baseFreq = 240;
+      const freq = baseFreq + (targetNum * 11);
+      playTone(freq, 'sine', 0.07, 0.18);
+    }
+
+    function playWrongSound() {
+      playTone(120, 'sawtooth', 0.22, 0.25);
+    }
+
+    function playObstacleSound() {
+      if (!soundEnabled) return;
+      try {
+        const ctx = getAudioContext();
+        if (!ctx) return;
+        
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(400, ctx.currentTime);
+        osc.frequency.setValueAtTime(800, ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.25);
+      } catch(e){}
+    }
+
+    function playVictorySound() {
+      if (!soundEnabled) return;
+      const notes = [523.25, 659.25, 783.99, 1046.50];
+      notes.forEach((freq, idx) => {
+        setTimeout(() => {
+          playTone(freq, 'triangle', 0.25, 0.22);
+        }, idx * 90);
+      });
+    }
+
+    /* ===================================================================
+       GAME STATE MANAGEMENT & CONSTANTS
+       =================================================================== */
+    const STORAGE_CLASSIC_KEY = '1to50_classic_rankings';
+    const STORAGE_GIMMICK_KEY = '1to50_gimmick_rankings';
+    const STORAGE_NAME_KEY = '1to50_player_name';
+
+    let currentMode = 'classic'; // 'classic' or 'gimmick'
+    let currentTarget = 1;
+    let hp = 3;
+    let timerInterval = null;
+    let countdownTimer = null;
+    let blindTimeout = null;
+    let startTime = 0;
+    let elapsedTime = 0;
+    let boardState = []; // 25 elements: number (1..50) or null
+    let isGameActive = false;
+    let activePlayerName = '익명';
+    let currentRecordTab = 'classic';
+
+    let obstacleTriggers = []; // Secret target numbers to trigger traps (gimmick mode)
+
+    // DOM Elements
+    const mainScreen = document.getElementById('mainScreen');
+    const gameScreen = document.getElementById('gameScreen');
+    const countdownOverlay = document.getElementById('countdownOverlay');
+    const countdownText = document.getElementById('countdownText');
+    const gameBoard = document.getElementById('gameBoard');
+    const targetDisplay = document.getElementById('targetDisplay');
+    const timerDisplay = document.getElementById('timerDisplay');
+    const hpHearts = document.getElementById('hpHearts');
+    const mainBestDisplay = document.getElementById('mainBestDisplay');
+    const mainBestPlayer = document.getElementById('mainBestPlayer');
+    const bestModeLabel = document.getElementById('bestModeLabel');
+    const flashOverlay = document.getElementById('flashOverlay');
+    const blindOverlay = document.getElementById('blindOverlay');
+    const penaltyOverlay = document.getElementById('penaltyOverlay');
+    const obstacleToast = document.getElementById('obstacleToast');
+    const obstacleToastText = document.getElementById('obstacleToastText');
+    const playerNameInput = document.getElementById('playerNameInput');
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const savedName = localStorage.getItem(STORAGE_NAME_KEY);
+      if (savedName) {
+        playerNameInput.value = savedName;
+      }
+      updateMainBestUI();
+    });
+
+    function shuffle(array) {
+      const arr = [...array];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function formatTime(seconds) {
+      return seconds.toFixed(2) + 's';
+    }
+
+    /* ===================================================================
+       MODE SELECTION & SCREEN NAVIGATION
+       =================================================================== */
+    function selectMode(mode) {
+      currentMode = mode;
+      const btnClassic = document.getElementById('modeBtnClassic');
+      const btnGimmick = document.getElementById('modeBtnGimmick');
+
+      if (mode === 'classic') {
+        btnClassic.className = 'p-3 rounded-2xl border transition-all text-left flex flex-col justify-between bg-indigo-600/20 border-indigo-500 text-indigo-200 shadow-lg shadow-indigo-950/40';
+        btnClassic.querySelector('i').className = 'fa-solid fa-circle-check text-indigo-400 text-sm';
+
+        btnGimmick.className = 'p-3 rounded-2xl border transition-all text-left flex flex-col justify-between bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700';
+        btnGimmick.querySelector('i').className = 'fa-solid fa-circle text-slate-700 text-sm';
+      } else {
+        btnGimmick.className = 'p-3 rounded-2xl border transition-all text-left flex flex-col justify-between bg-purple-600/20 border-purple-500 text-purple-200 shadow-lg shadow-purple-950/40';
+        btnGimmick.querySelector('i').className = 'fa-solid fa-circle-check text-purple-400 text-sm';
+
+        btnClassic.className = 'p-3 rounded-2xl border transition-all text-left flex flex-col justify-between bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700';
+        btnClassic.querySelector('i').className = 'fa-solid fa-circle text-slate-700 text-sm';
+      }
+
+      updateMainBestUI();
+    }
+
+    /**
+     * CRITICAL FIX: Go directly to Main Menu safely from ANY state or modal.
+     * Stops all active intervals/timeouts, closes all modals, resets game flags,
+     * and displays the main menu reliably.
+     */
+    function goToMainMenu() {
+      // 1. Clear all active intervals and timeouts
+      if (timerInterval) clearInterval(timerInterval);
+      if (countdownTimer) clearInterval(countdownTimer);
+      if (blindTimeout) clearTimeout(blindTimeout);
+
+      // 2. Reset active flags
+      isGameActive = false;
+
+      // 3. Hide all modals explicitly
+      const modals = document.querySelectorAll('.modal-overlay');
+      modals.forEach(m => m.classList.add('hidden'));
+
+      // 4. Hide trap overlays and toast banners
+      blindOverlay.classList.remove('animate-blind');
+      blindOverlay.style.opacity = '0';
+      obstacleToast.classList.add('hidden');
+      penaltyOverlay.classList.remove('animate-penalty');
+
+      // 5. Hide Game Screen and Show Main Screen
+      gameScreen.classList.add('hidden');
+      gameScreen.classList.remove('flex');
+
+      mainScreen.classList.remove('hidden');
+      mainScreen.classList.add('flex');
+
+      // 6. Refresh Main UI State
+      updateMainBestUI();
+    }
+
+    function openModal(modalId) {
+      if (modalId === 'recordsModal') {
+        switchRecordTab(currentMode);
+      }
+      document.getElementById(modalId).classList.remove('hidden');
+    }
+
+    function closeModal(modalId) {
+      document.getElementById(modalId).classList.add('hidden');
+    }
+
+    function requestGameStart() {
+      // Close any active modal first (e.g. retry from result modal)
+      const modals = document.querySelectorAll('.modal-overlay');
+      modals.forEach(m => m.classList.add('hidden'));
+
+      const rawInput = playerNameInput.value.trim();
+      activePlayerName = rawInput.length > 0 ? rawInput : '익명';
+      localStorage.setItem(STORAGE_NAME_KEY, activePlayerName);
+
+      document.getElementById('inGamePlayerName').textContent = activePlayerName;
+      document.getElementById('inGameModeBadge').textContent = currentMode === 'classic' ? '클래식 모드' : '방해 모드';
+      
+      if (currentMode === 'gimmick') {
+        document.getElementById('inGameModeBadge').className = 'text-[11px] font-bold px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/30';
+      } else {
+        document.getElementById('inGameModeBadge').className = 'text-[11px] font-bold px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-500/30';
+      }
+
+      startCountdownPhase();
+    }
+
+    /* ===================================================================
+       COUNTDOWN PHASE & GAMEPLAY LOOP
+       =================================================================== */
+    function startCountdownPhase() {
+      if (timerInterval) clearInterval(timerInterval);
+      if (countdownTimer) clearInterval(countdownTimer);
+      if (blindTimeout) clearTimeout(blindTimeout);
+
+      currentTarget = 1;
+      hp = 3;
+      elapsedTime = 0;
+      isGameActive = false;
+
+      targetDisplay.textContent = '1';
+      timerDisplay.textContent = '0.00s';
+      updateHPDisplay();
+
+      // Interruption Mode: exactly 2 secret trap points
+      if (currentMode === 'gimmick') {
+        const t1 = Math.floor(Math.random() * 13) + 10; // between 10 ~ 22
+        const t2 = Math.floor(Math.random() * 15) + 26; // between 26 ~ 40
+        obstacleTriggers = [t1, t2];
+      } else {
+        obstacleTriggers = [];
+      }
+
+      // Initialize Board: Shuffle 1 ~ 25 in fixed 25 slots
+      boardState = shuffle(Array.from({ length: 25 }, (_, i) => i + 1));
+      renderBoard();
+
+      // UI Switch
+      mainScreen.classList.add('hidden');
+      mainScreen.classList.remove('flex');
+      
+      gameScreen.classList.remove('hidden');
+      gameScreen.classList.add('flex');
+      countdownOverlay.classList.remove('hidden');
+
+      // Countdown Sequence (3 -> 2 -> 1 -> GO!)
+      let count = 3;
+      countdownText.textContent = count;
+      countdownText.className = 'text-5xl font-black text-indigo-400 animate-pop';
+      playTone(440, 'sine', 0.1, 0.2);
+
+      countdownTimer = setInterval(() => {
+        count--;
+        if (count > 0) {
+          countdownText.textContent = count;
+          countdownText.classList.remove('animate-pop');
+          void countdownText.offsetWidth; // Reflow
+          countdownText.classList.add('animate-pop');
+          playTone(440, 'sine', 0.1, 0.2);
+        } else if (count === 0) {
+          countdownText.textContent = 'GO!';
+          countdownText.className = 'text-3xl font-black text-emerald-400 animate-pop';
+          playTone(880, 'sine', 0.2, 0.25);
+        } else {
+          clearInterval(countdownTimer);
+          countdownOverlay.classList.add('hidden');
+          beginGameplay();
+        }
+      }, 700);
+    }
+
+    function beginGameplay() {
+      isGameActive = true;
+      startTime = Date.now();
+      
+      if (timerInterval) clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        if (!isGameActive) return;
+        elapsedTime = (Date.now() - startTime) / 1000;
+        timerDisplay.textContent = formatTime(elapsedTime);
+      }, 10);
+    }
+
+    /* ===================================================================
+       FIXED TILE BOARD RENDERING & CLICK LOGIC
+       =================================================================== */
+    function renderBoard() {
+      gameBoard.innerHTML = '';
+
+      boardState.forEach((num, index) => {
+        const slot = document.createElement('div');
+        slot.className = 'w-full h-full aspect-square relative';
+
+        if (num === null) {
+          // Empty slot maintains strict 5x5 grid geometry without resizing neighboring cells!
+          slot.className = 'w-full h-full aspect-square opacity-0 pointer-events-none';
+        } else {
+          const isPhaseTwo = num > 25;
+          const bgStyle = isPhaseTwo 
+            ? 'bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-emerald-50 border-emerald-400/40 shadow-emerald-950/40' 
+            : 'bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-indigo-50 border-indigo-400/40 shadow-indigo-950/40';
+
+          const btn = document.createElement('button');
+          btn.className = `w-full h-full rounded-xl font-black text-lg sm:text-2xl flex items-center justify-center border shadow-md active:scale-90 transition-all duration-75 select-none ${bgStyle}`;
+          btn.textContent = num;
+
+          btn.addEventListener('click', () => handleTileClick(index, num));
+          slot.appendChild(btn);
+        }
+
+        gameBoard.appendChild(slot);
+      });
+    }
+
+    function handleTileClick(index, num) {
+      if (!isGameActive) return;
+
+      if (num === currentTarget) {
+        // CORRECT CLICK
+        playTapSound(currentTarget);
+
+        // Update Tile: <=25 replaces with num+25; >25 removes tile cleanly
+        if (num <= 25) {
+          boardState[index] = num + 25;
+        } else {
+          boardState[index] = null;
+        }
+
+        // Trigger obstacle if current target matches a secret trap number
+        if (currentMode === 'gimmick' && obstacleTriggers.includes(currentTarget)) {
+          triggerRandomObstacle();
+        }
+
+        currentTarget++;
+
+        // Render board immediately so tile 50 vanishes cleanly!
+        renderBoard();
+
+        if (currentTarget > 50) {
+          handleGameSuccess();
+        } else {
+          targetDisplay.textContent = currentTarget;
+        }
+      } else {
+        // INCORRECT CLICK
+        handleWrongClick();
+      }
+    }
+
+    /* ===================================================================
+       OBSTACLE TRAPS (방해 모드 전용)
+       =================================================================== */
+    function triggerRandomObstacle() {
+      playObstacleSound();
+
+      const traps = ['SHUFFLE', 'BLIND', 'PENALTY'];
+      const chosenTrap = traps[Math.floor(Math.random() * traps.length)];
+
+      if (chosenTrap === 'SHUFFLE') {
+        const activeIndices = [];
+        const activeValues = [];
+
+        boardState.forEach((val, idx) => {
+          if (val !== null) {
+            activeIndices.push(idx);
+            activeValues.push(val);
+          }
+        });
+
+        const shuffledValues = shuffle(activeValues);
+        activeIndices.forEach((idx, i) => {
+          boardState[idx] = shuffledValues[i];
+        });
+
+        renderBoard();
+        showObstacleToast('방해 발생: 타일 위치 무작위 셔플!');
+      } else if (chosenTrap === 'BLIND') {
+        blindOverlay.classList.remove('animate-blind');
+        void blindOverlay.offsetWidth;
+        blindOverlay.classList.add('animate-blind');
+        showObstacleToast('방해 발생: 1.2초 시야 차단!');
+      } else if (chosenTrap === 'PENALTY') {
+        startTime -= 2000; // Adds +2.0 seconds to timer
+        penaltyOverlay.classList.remove('animate-penalty');
+        void penaltyOverlay.offsetWidth;
+        penaltyOverlay.classList.add('animate-penalty');
+        showObstacleToast('방해 발생: +2.0초 시간 추가!');
+      }
+    }
+
+    function showObstacleToast(msg) {
+      obstacleToastText.textContent = msg;
+      obstacleToast.classList.remove('hidden', 'animate-obstacle-toast');
+      void obstacleToast.offsetWidth;
+      obstacleToast.classList.add('animate-obstacle-toast');
+
+      setTimeout(() => {
+        obstacleToast.classList.add('hidden');
+      }, 2000);
+    }
+
+    /* ===================================================================
+       HP & ERROR LOGIC
+       =================================================================== */
+    function handleWrongClick() {
+      hp--;
+      playWrongSound();
+      updateHPDisplay();
+
+      flashOverlay.classList.remove('animate-flash');
+      gameBoard.classList.remove('animate-shake');
+      void flashOverlay.offsetWidth;
+      void gameBoard.offsetWidth;
+      
+      flashOverlay.classList.add('animate-flash');
+      gameBoard.classList.add('animate-shake');
+
+      if (hp <= 0) {
+        handleGameOver();
+      }
+    }
+
+    function updateHPDisplay() {
+      hpHearts.innerHTML = '';
+      for (let i = 0; i < 3; i++) {
+        const heart = document.createElement('i');
+        if (i < hp) {
+          heart.className = 'fa-solid fa-heart text-rose-500 animate-pulse';
+        } else {
+          heart.className = 'fa-solid fa-heart text-slate-700';
+        }
+        hpHearts.appendChild(heart);
+      }
+    }
+
+    function handleGameOver() {
+      isGameActive = false;
+      if (timerInterval) clearInterval(timerInterval);
+
+      document.getElementById('overModeTag').textContent = currentMode === 'classic' ? '클래식 모드' : '방해 모드';
+      document.getElementById('overPlayerName').textContent = activePlayerName;
+
+      setTimeout(() => {
+        openModal('gameOverModal');
+      }, 300);
+    }
+
+    function handleGameSuccess() {
+      isGameActive = false;
+      if (timerInterval) clearInterval(timerInterval);
+
+      playVictorySound();
+
+      const finalTime = elapsedTime;
+      document.getElementById('clearFinalTime').textContent = formatTime(finalTime);
+      document.getElementById('clearPlayerName').textContent = activePlayerName;
+      document.getElementById('clearModeTag').textContent = currentMode === 'classic' ? '[클래식 모드]' : '[방해 모드]';
+
+      const isNewBest = saveRecord(activePlayerName, finalTime, currentMode);
+
+      const badge = document.getElementById('newRecordBadge');
+      if (isNewBest) {
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+
+      updateMainBestUI();
+
+      setTimeout(() => {
+        openModal('clearModal');
+      }, 200);
+    }
+
+    /* ===================================================================
+       SEPARATE LOCALSTORAGE LEADERBOARD RANKING SYSTEM
+       =================================================================== */
+    function getStoredRecords(mode) {
+      const storageKey = mode === 'classic' ? STORAGE_CLASSIC_KEY : STORAGE_GIMMICK_KEY;
+      try {
+        const data = localStorage.getItem(storageKey);
+        return data ? JSON.parse(data) : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveRecord(playerName, scoreTime, mode) {
+      const storageKey = mode === 'classic' ? STORAGE_CLASSIC_KEY : STORAGE_GIMMICK_KEY;
+      let records = getStoredRecords(mode);
+      const previousBestTime = records.length > 0 ? records[0].time : null;
+
+      const now = new Date();
+      const dateStr = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}`;
+
+      records.push({
+        name: playerName,
+        time: scoreTime,
+        date: dateStr
+      });
+
+      // Sort Ascending
+      records.sort((a, b) => a.time - b.time);
+
+      // Top 5
+      records = records.slice(0, 5);
+
+      localStorage.setItem(storageKey, JSON.stringify(records));
+
+      return previousBestTime === null || scoreTime < previousBestTime;
+    }
+
+    function updateMainBestUI() {
+      bestModeLabel.textContent = currentMode === 'classic' ? '클래식' : '방해';
+      const records = getStoredRecords(currentMode);
+
+      if (records.length > 0) {
+        mainBestDisplay.textContent = formatTime(records[0].time);
+        mainBestPlayer.textContent = records[0].name;
+      } else {
+        mainBestDisplay.textContent = '-- : --';
+        mainBestPlayer.textContent = '-';
+      }
+    }
+
+    function switchRecordTab(mode) {
+      currentRecordTab = mode;
+      const tabBtnClassic = document.getElementById('tabBtnClassic');
+      const tabBtnGimmick = document.getElementById('tabBtnGimmick');
+
+      if (mode === 'classic') {
+        tabBtnClassic.className = 'py-1.5 rounded-lg transition-all text-center bg-indigo-600 text-white shadow-md font-bold';
+        tabBtnGimmick.className = 'py-1.5 rounded-lg transition-all text-center text-slate-400 hover:text-slate-200 font-bold';
+      } else {
+        tabBtnGimmick.className = 'py-1.5 rounded-lg transition-all text-center bg-purple-600 text-white shadow-md font-bold';
+        tabBtnClassic.className = 'py-1.5 rounded-lg transition-all text-center text-slate-400 hover:text-slate-200 font-bold';
+      }
+
+      renderRecordsList();
+    }
+
+    function renderRecordsList() {
+      const recordsList = document.getElementById('recordsList');
+      const records = getStoredRecords(currentRecordTab);
+
+      if (records.length === 0) {
+        recordsList.innerHTML = `
+          <div class="text-center py-8 text-slate-500 text-xs">
+            <i class="fa-solid fa-trophy text-2xl mb-2 text-slate-600 block"></i>
+            등록된 랭킹 기록이 없습니다.
+          </div>`;
+        return;
+      }
+
+      recordsList.innerHTML = records.map((rec, idx) => {
+        const isRank1 = idx === 0;
+        const isRank2 = idx === 1;
+        const isRank3 = idx === 2;
+
+        let badgeBg = 'bg-slate-800 text-slate-400';
+        if (isRank1) badgeBg = 'bg-amber-500/20 text-amber-400 border border-amber-500/40';
+        else if (isRank2) badgeBg = 'bg-slate-300/20 text-slate-200 border border-slate-400/40';
+        else if (isRank3) badgeBg = 'bg-amber-700/20 text-amber-600 border border-amber-700/40';
+
+        return `
+          <div class="flex items-center justify-between p-2.5 rounded-xl ${isRank1 ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-slate-950/60 border border-slate-800'}">
+            <div class="flex items-center gap-2.5">
+              <span class="w-6 h-6 rounded-lg ${badgeBg} font-black flex items-center justify-center text-xs">${idx + 1}</span>
+              <div>
+                <div class="text-xs font-bold ${isRank1 ? 'text-amber-300' : 'text-slate-100'}">${escapeHtml(rec.name)}</div>
+                <div class="text-[10px] text-slate-500">${rec.date}</div>
+              </div>
+            </div>
+            <div class="text-xs font-mono font-black ${isRank1 ? 'text-amber-400' : 'text-slate-200'}">
+              ${formatTime(rec.time)}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/[&<>"']/g, function(m) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
+      });
+    }
+
+    function clearCurrentModeRecords() {
+      const modeName = currentRecordTab === 'classic' ? '클래식 모드' : '방해 모드';
+      document.getElementById('confirmTitle').textContent = `${modeName} 랭킹을 초기화할까요?`;
+      document.getElementById('confirmDesc').textContent = `저장된 ${modeName} 명예의 전당 기록이 삭제됩니다.`;
+
+      const confirmModal = document.getElementById('confirmModal');
+      const cancelBtn = document.getElementById('confirmCancelBtn');
+      const okBtn = document.getElementById('confirmOkBtn');
+
+      confirmModal.classList.remove('hidden');
+
+      const handleCancel = () => {
+        confirmModal.classList.add('hidden');
+        cleanup();
+      };
+
+      const handleOk = () => {
+        const storageKey = currentRecordTab === 'classic' ? STORAGE_CLASSIC_KEY : STORAGE_GIMMICK_KEY;
+        localStorage.removeItem(storageKey);
+        renderRecordsList();
+        updateMainBestUI();
+        confirmModal.classList.add('hidden');
+        cleanup();
+      };
+
+      function cleanup() {
+        cancelBtn.removeEventListener('click', handleCancel);
+        okBtn.removeEventListener('click', handleOk);
+      }
+
+      cancelBtn.addEventListener('click', handleCancel);
+      okBtn.addEventListener('click', handleOk);
+    }
+  </script>
+</body>
+</html>

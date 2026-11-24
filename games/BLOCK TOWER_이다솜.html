@@ -1,0 +1,1256 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>물리 블록 타워 게임 - Cyber Neon Edition</title>
+    <!-- Matter.js 물리 엔진 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: #0b0e14;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(30, 41, 59, 0.5) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(15, 23, 42, 0.8) 0px, transparent 50%);
+            color: #f8fafc;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        #game-container {
+            position: relative;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 20px rgba(99, 102, 241, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* 💨 배경 돌풍 시각 효과 레이어 */
+        #wind-bg-effect {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            background: repeating-linear-gradient(
+                -45deg,
+                rgba(244, 63, 94, 0),
+                rgba(244, 63, 94, 0) 20px,
+                rgba(244, 63, 94, 0.08) 20px,
+                rgba(244, 63, 94, 0.08) 40px
+            );
+        }
+        #wind-bg-effect.active {
+            opacity: 1;
+            animation: windFlow 1s linear infinite;
+        }
+
+        @keyframes windFlow {
+            0% { background-position: 0 0; }
+            100% { background-position: 40px 40px; }
+        }
+
+        /* 🔮 상단 메인 HUD UI */
+        #ui {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            right: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 12px;
+            padding: 8px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            z-index: 10;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        .stat-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 4px 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        #score-display {
+            color: #38bdf8;
+            font-weight: 800;
+        }
+
+        #win-timer {
+            color: #4ade80;
+            font-weight: 700;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        #wind-indicator {
+            position: absolute;
+            top: 58px;
+            left: 12px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #f43f5e;
+            background: rgba(244, 63, 94, 0.15);
+            border: 1px solid rgba(244, 63, 94, 0.3);
+            padding: 4px 10px;
+            border-radius: 20px;
+            backdrop-filter: blur(8px);
+            display: none;
+            z-index: 10;
+            animation: shake 0.5s infinite alternate;
+        }
+
+        @keyframes shake {
+            from { transform: translateX(0); }
+            to { transform: translateX(3px); }
+        }
+
+        /* 📦 패널 공통 스타일 (Glassmorphism) */
+        .panel {
+            position: absolute;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 10px;
+            z-index: 5;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding-bottom: 4px;
+            text-transform: uppercase;
+        }
+
+        .panel-toggle-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 10px;
+            border-radius: 4px;
+            padding: 2px 5px;
+            transition: all 0.2s;
+        }
+
+        .panel-toggle-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+        }
+
+        .panel.collapsed {
+            padding: 6px 10px;
+        }
+
+        .panel.collapsed .panel-content {
+            display: none;
+        }
+
+        .panel.collapsed .panel-header {
+            margin-bottom: 0;
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        #guide-container {
+            top: 60px;
+            left: 12px;
+            width: 150px;
+            z-index: 5;
+        }
+
+        #guide-container .panel-header {
+            color: #38bdf8;
+        }
+
+        .guide-item {
+            font-size: 11px;
+            color: #cbd5e1;
+            margin-bottom: 5px;
+            line-height: 1.2;
+            display: flex;
+            align-items: center;
+        }
+
+        .guide-color {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            margin-right: 8px;
+            border-radius: 3px;
+            flex-shrink: 0;
+            box-shadow: 0 0 6px rgba(0,0,0,0.5);
+        }
+
+        #next-container {
+            top: 60px;
+            right: 12px;
+            text-align: center;
+            width: 90px;
+            z-index: 5;
+        }
+
+        #next-container .panel-header {
+            color: #facc15;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        #next-type-name {
+            font-size: 11px;
+            color: #f8fafc;
+            margin-top: 4px;
+            font-weight: 700;
+        }
+
+        #next-canvas {
+            display: block;
+            margin: 0 auto;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+        }
+
+        /* 🪟 모달 & 오버레이 스크린 */
+        .overlay-screen {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(11, 14, 20, 0.85);
+            backdrop-filter: blur(16px);
+            z-index: 100;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .modal-content {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 20px;
+            padding: 24px 28px;
+            width: 320px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+        }
+
+        .modal-content h2 {
+            margin-top: 0;
+            color: #f8fafc;
+            font-size: 22px;
+            font-weight: 800;
+            margin-bottom: 6px;
+            letter-spacing: -0.5px;
+        }
+
+        #modal-result-text {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-bottom: 18px;
+            line-height: 1.5;
+        }
+
+        #leaderboard-list {
+            list-style: none;
+            margin: 0 0 18px 0;
+            padding: 0;
+            font-size: 13px;
+            text-align: left;
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 10px;
+            padding: 10px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        #leaderboard-list li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+            color: #cbd5e1;
+            padding: 2px 0;
+        }
+
+        #leaderboard-list li:last-child {
+            margin-bottom: 0;
+        }
+
+        #leaderboard-list li:first-child {
+            color: #facc15;
+            font-weight: 700;
+        }
+
+        .menu-btn {
+            background: rgba(255, 255, 255, 0.05);
+            color: #f8fafc;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 12px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            width: 100%;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .menu-btn.easy { border-color: rgba(74, 222, 128, 0.4); }
+        .menu-btn.normal { border-color: rgba(56, 189, 248, 0.4); }
+        .menu-btn.hard { border-color: rgba(251, 146, 60, 0.4); }
+        .menu-btn.hardcore { border-color: rgba(244, 63, 94, 0.4); }
+
+        .menu-btn.easy:hover { background: rgba(74, 222, 128, 0.2); transform: translateY(-2px); }
+        .menu-btn.normal:hover { background: rgba(56, 189, 248, 0.2); transform: translateY(-2px); }
+        .menu-btn.hard:hover { background: rgba(251, 146, 60, 0.2); transform: translateY(-2px); }
+        .menu-btn.hardcore:hover { background: rgba(244, 63, 94, 0.2); transform: translateY(-2px); }
+
+        .restart-btn {
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 12px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        .restart-btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        /* 🎮 하단 가상 키패드 컨트롤 */
+        #key-display {
+            margin-top: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            user-select: none;
+        }
+
+        .key-row {
+            display: flex;
+            gap: 6px;
+        }
+
+        .key-cap {
+            background: #1e293b;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: 3px solid #0f172a;
+            border-radius: 8px;
+            color: #94a3b8;
+            font-weight: 700;
+            font-size: 13px;
+            padding: 8px 12px;
+            min-width: 44px;
+            text-align: center;
+            transition: all 0.05s ease;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .key-cap.space {
+            width: 156px;
+        }
+
+        .key-cap.active, .key-cap:active {
+            background: #38bdf8;
+            color: #0f172a;
+            border-color: #0284c7;
+            border-bottom-width: 1px;
+            transform: translateY(2px);
+        }
+
+        .key-desc {
+            font-size: 9px;
+            color: inherit;
+            opacity: 0.7;
+            margin-top: 2px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- 💨 배경 돌풍 효과 레이어 -->
+        <div id="wind-bg-effect"></div>
+
+        <!-- 🔮 상단 메인 HUD -->
+        <div id="ui">
+            <div class="stat-badge">
+                <span>점수</span>
+                <span id="score-display">0</span>
+            </div>
+            <div class="stat-badge">
+                <span id="tier-display">🥉 Bronze</span>
+            </div>
+            <div class="stat-badge">
+                <span>❤️</span>
+                <span id="lives">3</span>
+            </div>
+            <span id="win-timer"></span>
+        </div>
+
+        <div id="wind-indicator">💨 돌풍 주의!</div>
+        
+        <!-- 📘 특수 블록 가이드 UI -->
+        <div id="guide-container" class="panel">
+            <div class="panel-header">
+                <span>📘 블록 타입</span>
+                <button class="panel-toggle-btn" onclick="togglePanel(event, 'guide-container')">✕</button>
+            </div>
+            <div class="panel-content">
+                <div class="guide-item"><span class="guide-color" style="background:#f43f5e;"></span><div><b>폭탄:</b> 충격 시 폭발</div></div>
+                <div class="guide-item"><span class="guide-color" style="background:#64748b;"></span><div><b>철판:</b> 묵직함</div></div>
+                <div class="guide-item"><span class="guide-color" style="background:#38bdf8;"></span><div><b>얼음:</b> 매우 미끄러움</div></div>
+                <div class="guide-item"><span class="guide-color" style="background:#fb7185;"></span><div><b>풍선:</b> 초경량</div></div>
+            </div>
+        </div>
+
+        <!-- NEXT 미리보기 UI -->
+        <div id="next-container" class="panel">
+            <div class="panel-header">
+                <span>NEXT</span>
+                <button class="panel-toggle-btn" onclick="togglePanel(event, 'next-container')">✕</button>
+            </div>
+            <div class="panel-content">
+                <canvas id="next-canvas" width="70" height="60"></canvas>
+                <div id="next-type-name">일반</div>
+            </div>
+        </div>
+
+        <!-- 🎮 난이도 선택 오버레이 -->
+        <div id="difficulty-screen" class="overlay-screen" style="display: flex;">
+            <div class="modal-content">
+                <h2>BLOCK TOWER</h2>
+                <div id="modal-result-text">난이도를 선택하여 시작하세요</div>
+                <button class="menu-btn easy" onclick="startGame('easy')">🟢 쉬움 <span>(목숨 5개)</span></button>
+                <button class="menu-btn normal" onclick="startGame('normal')">🔵 보통 <span>(목숨 3개)</span></button>
+                <button class="menu-btn hard" onclick="startGame('hard')">🟠 어려움 <span>(중력 증가)</span></button>
+                <button class="menu-btn hardcore" onclick="startGame('hardcore')">🔴 하드코어 <span>(돌풍 발생, 폭탄X)</span></button>
+            </div>
+        </div>
+
+        <!-- 🏆 게임 종료 및 랭킹 모달 -->
+        <div id="gameover-modal" class="overlay-screen">
+            <div class="modal-content">
+                <h2 id="modal-title">GAME OVER</h2>
+                <div id="modal-result-text">점수 결과 요약</div>
+                <div style="font-size: 11px; font-weight: 700; color: #facc15; margin-bottom: 6px; text-align: left; text-transform: uppercase; letter-spacing: 0.5px;">🏆 TOP 5 LEADERBOARD</div>
+                <ul id="leaderboard-list"></ul>
+                <button class="restart-btn" onclick="location.reload()">메인 메뉴로 이동</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🎮 하단 가상 컨트롤 키패드 -->
+    <div id="key-display">
+        <div class="key-row">
+            <div class="key-cap" id="key-W" onclick="handleAction('rotate')">W / ▲<span class="key-desc">회전</span></div>
+        </div>
+        <div class="key-row">
+            <div class="key-cap" id="key-A" onclick="handleAction('left')">A / ◄<span class="key-desc">좌로</span></div>
+            <div class="key-cap" id="key-S" onclick="handleAction('rotate-counter')">S / ▼<span class="key-desc">반회전</span></div>
+            <div class="key-cap" id="key-D" onclick="handleAction('right')">D / ►<span class="key-desc">우로</span></div>
+        </div>
+        <div class="key-row">
+            <div class="key-cap space" id="key-Space" onclick="handleAction('drop')">SPACEBAR<span class="key-desc">드롭</span></div>
+        </div>
+    </div>
+
+<script>
+/**
+ * 🎵 순수 코드로 만들어진 배경음악 (BGM) 및 효과음 모듈
+ */
+class GameBGM {
+    constructor() {
+        this.audioCtx = null;
+        this.isPlaying = false;
+        this.timerId = null;
+        this.noteIndex = 0;
+
+        this.NOTES = {
+            'C4': 261.63, 'D4': 293.66, 'E4': 329.63, 'F4': 349.23,
+            'G4': 392.00, 'A4': 440.00, 'B4': 493.88, 'C5': 523.25, 'REST': 0
+        };
+
+        this.MELODY = [
+            { note: 'E4', duration: 0.25 }, { note: 'G4', duration: 0.25 },
+            { note: 'C5', duration: 0.25 }, { note: 'REST', duration: 0.25 },
+            { note: 'B4', duration: 0.25 }, { note: 'G4', duration: 0.25 },
+            { note: 'A4', duration: 0.5 }, { note: 'F4', duration: 0.25 },
+            { note: 'A4', duration: 0.25 }, { note: 'G4', duration: 0.5 },
+            { note: 'E4', duration: 0.25 }, { note: 'D4', duration: 0.25 },
+            { note: 'C4', duration: 0.5 }
+        ];
+    }
+
+    init() {
+        if (!this.audioCtx) {
+            this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+    }
+
+    playNote(freq, duration) {
+        if (freq === 0) return; 
+
+        const osc = this.audioCtx.createOscillator();
+        const gain = this.audioCtx.createGain();
+
+        osc.type = 'square'; 
+        osc.frequency.setValueAtTime(freq, this.audioCtx.currentTime);
+
+        gain.gain.setValueAtTime(0.01, this.audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.05, this.audioCtx.currentTime + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + duration);
+
+        osc.connect(gain);
+        gain.connect(this.audioCtx.destination);
+
+        osc.start();
+        osc.stop(this.audioCtx.currentTime + duration);
+    }
+
+    loopSequence() {
+        if (!this.isPlaying) return;
+
+        const current = this.MELODY[this.noteIndex];
+        this.playNote(this.NOTES[current.note], current.duration);
+
+        this.noteIndex = (this.noteIndex + 1) % this.MELODY.length;
+        this.timerId = setTimeout(() => this.loopSequence(), current.duration * 1000);
+    }
+
+    play() {
+        this.init();
+        if (this.audioCtx.state === 'suspended') {
+            this.audioCtx.resume();
+        }
+        if (!this.isPlaying) {
+            this.isPlaying = true;
+            this.loopSequence();
+        }
+    }
+
+    stop() {
+        this.isPlaying = false;
+        clearTimeout(this.timerId);
+    }
+
+    // 💥 폭발음 효과음 메서드
+    playExplosion() {
+        this.init();
+        if (!this.audioCtx) return;
+
+        const osc = this.audioCtx.createOscillator();
+        const gain = this.audioCtx.createGain();
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(120, this.audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(30, this.audioCtx.currentTime + 0.4);
+
+        gain.gain.setValueAtTime(0.2, this.audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + 0.4);
+
+        osc.connect(gain);
+        gain.connect(this.audioCtx.destination);
+
+        osc.start();
+        osc.stop(this.audioCtx.currentTime + 0.4);
+    }
+}
+
+const gameBGM = new GameBGM();
+
+    function togglePanel(event, panelId) {
+        const panel = document.getElementById(panelId);
+        const btn = panel.querySelector('.panel-toggle-btn');
+        panel.classList.toggle('collapsed');
+        
+        if (panel.classList.contains('collapsed')) {
+            btn.innerText = '👁';
+        } else {
+            btn.innerText = '✕';
+        }
+
+        if (event && event.currentTarget) {
+            event.currentTarget.blur();
+        }
+    }
+
+    if (typeof Matter === 'undefined') {
+        alert("물리 엔진(Matter.js)을 불러오지 못했습니다.\n인터넷 연결 상태를 확인해 주세요.");
+    }
+
+    const { Engine, Render, Runner, Bodies, Composite, Body, Events, Vector } = Matter;
+
+    const GAME_WIDTH = 450;
+    const GAME_HEIGHT = 650;
+    const GOAL_Y = 220;
+    
+    let currentScore = 0;
+    let lives = 3;
+    let selectedDifficulty = 'normal';
+    let gameStarted = false;
+    let gameOver = false;
+    let winHoldTimer = null;
+    let holdSecondsLeft = 3;
+
+    let windTimer = 0;
+    let currentWindForce = 0;
+    let explosionParticles = []; // 폭발 파티클 관리 배열
+
+    const engine = Engine.create();
+    engine.gravity.y = 1.0;
+
+    const render = Render.create({
+        element: document.getElementById('game-container'),
+        engine: engine,
+        options: {
+            width: GAME_WIDTH,
+            height: GAME_HEIGHT,
+            wireframes: false,
+            background: '#0f172a'
+        }
+    });
+
+    Render.run(render);
+    const runner = Runner.create();
+    Runner.run(runner, engine);
+
+    const platform = Bodies.rectangle(GAME_WIDTH / 2, 540, 160, 20, { 
+        isStatic: true,
+        friction: 1.0,
+        render: { fillStyle: '#38bdf8' }
+    });
+    
+    const killZone = Bodies.rectangle(GAME_WIDTH / 2, GAME_HEIGHT + 60, GAME_WIDTH * 3, 100, {
+        isStatic: true,
+        isSensor: true
+    });
+
+    Composite.add(engine.world, [platform, killZone]);
+
+    const BLOCK_SIZE = 26;
+    
+    const TETRIS_SHAPES = [
+        { shape: [{x: -1.5, y: 0}, {x: -0.5, y: 0}, {x: 0.5, y: 0}, {x: 1.5, y: 0}], color: '#22d3ee' },
+        { shape: [{x: -0.5, y: -0.5}, {x: 0.5, y: -0.5}, {x: -0.5, y: 0.5}, {x: 0.5, y: 0.5}], color: '#facc15' },
+        { shape: [{x: -1, y: 0}, {x: 0, y: 0}, {x: 1, y: 0}, {x: 0, y: -1}], color: '#c084fc' },
+        { shape: [{x: -1, y: 0}, {x: 0, y: 0}, {x: 1, y: 0}, {x: 1, y: -1}], color: '#818cf8' },
+        { shape: [{x: -1, y: 0}, {x: 0, y: 0}, {x: 1, y: 0}, {x: -1, y: -1}], color: '#fb923c' },
+        { shape: [{x: -1, y: 0}, {x: 0, y: 0}, {x: 0, y: -1}, {x: 1, y: -1}], color: '#4ade80' },
+        { shape: [{x: -1, y: -1}, {x: 0, y: -1}, {x: 0, y: 0}, {x: 1, y: 0}], color: '#f87171' }
+    ];
+
+    const BLOCK_TYPES = {
+        NORMAL: { name: '일반 블록', weight: 0.005, friction: 0.95 },
+        BOMB:   { name: '폭탄 블록', color: '#f43f5e', weight: 0.005, friction: 0.9 },
+        HEAVY:  { name: '철판(무거움)', color: '#64748b', weight: 0.025, friction: 1.0 },
+        ICE:    { name: '얼음 블록', color: '#38bdf8', weight: 0.005, friction: 0.001 },
+        LIGHT:  { name: '풍선(가벼움)', color: '#fb7185', weight: 0.001, friction: 0.5 }
+    };
+
+    let currentPiece = null;
+    let nextPieceData = null;
+
+    function startGame(difficulty) {
+        selectedDifficulty = difficulty;
+        gameBGM.play();
+
+        if (difficulty === 'easy') {
+            lives = 5;
+            engine.gravity.y = 0.9;
+            render.options.background = '#062016';
+        } else if (difficulty === 'normal') {
+            lives = 3;
+            engine.gravity.y = 1.0;
+            render.options.background = '#0f172a';
+        } else if (difficulty === 'hard') {
+            lives = 2;
+            engine.gravity.y = 1.2;
+            render.options.background = '#1e1b18';
+        } else if (difficulty === 'hardcore') {
+            lives = 1;
+            engine.gravity.y = 1.5;
+            render.options.background = '#1f090d';
+        }
+
+        document.getElementById('lives').innerText = lives;
+        document.getElementById('difficulty-screen').style.display = 'none';
+        
+        gameStarted = true;
+        updateScoreUI();
+        spawnPiece();
+    }
+
+    function getTier(score) {
+        if (score >= 1200) return { name: 'Challenger', icon: '🌌' };
+        if (score >= 900) return { name: 'Diamond', icon: '👑' };
+        if (score >= 600) return { name: 'Platinum', icon: '💎' };
+        if (score >= 400) return { name: 'Gold', icon: '🥇' };
+        if (score >= 200) return { name: 'Silver', icon: '🥈' };
+        return { name: 'Bronze', icon: '🥉' };
+    }
+
+    function updateScoreUI() {
+        document.getElementById('score-display').innerText = currentScore;
+        const tier = getTier(currentScore);
+        document.getElementById('tier-display').innerText = `${tier.icon} ${tier.name}`;
+    }
+
+    function loadLeaderboard() {
+        const saved = localStorage.getItem('blockTowerTierLeaderboard_' + selectedDifficulty);
+        return saved ? JSON.parse(saved) : [];
+    }
+
+    function saveScore(name, finalScore) {
+        let board = loadLeaderboard();
+        const tierInfo = getTier(finalScore);
+        
+        board.push({ 
+            name: name || '익명', 
+            score: finalScore,
+            tier: tierInfo.name,
+            icon: tierInfo.icon
+        });
+        
+        board.sort((a, b) => b.score - a.score);
+        board = board.slice(0, 5);
+        localStorage.setItem('blockTowerTierLeaderboard_' + selectedDifficulty, JSON.stringify(board));
+    }
+
+    function showGameOverModal(isClear, finalScore) {
+        gameBGM.stop();
+        document.getElementById('wind-bg-effect').classList.remove('active');
+
+        const modal = document.getElementById('gameover-modal');
+        const titleEl = document.getElementById('modal-title');
+        const textEl = document.getElementById('modal-result-text');
+        const listEl = document.getElementById('leaderboard-list');
+
+        const diffNames = { easy: '쉬움', normal: '보통', hard: '어려움', hardcore: '하드코어' };
+
+        if (isClear) {
+            titleEl.innerText = '🎉 STAGE CLEAR!';
+            const tier = getTier(finalScore);
+            textEl.innerHTML = `난이도: [${diffNames[selectedDifficulty]}]<br>최종 점수: <b>${finalScore}점</b><br>달성 티어: ${tier.icon} ${tier.name}`;
+        } else {
+            titleEl.innerText = '💥 GAME OVER';
+            textEl.innerHTML = `난이도: [${diffNames[selectedDifficulty]}]<br>도착 지점에 도달하지 못했습니다.<br>최종 점수: <b>${finalScore}점</b>`;
+        }
+
+        const board = loadLeaderboard();
+        listEl.innerHTML = '';
+        if (board.length === 0) {
+            listEl.innerHTML = '<li style="color:#64748b; justify-content:center;">기록 없음</li>';
+        } else {
+            board.forEach((entry, idx) => {
+                const li = document.createElement('li');
+                li.innerHTML = `<span>${idx + 1}. ${entry.icon} ${entry.name}</span><span>${entry.score}점</span>`;
+                listEl.appendChild(li);
+            });
+        }
+
+        modal.style.display = 'flex';
+    }
+
+    function handleGoalClear() {
+        gameOver = true;
+        if (winHoldTimer) clearInterval(winHoldTimer);
+
+        const diffMultiplier = { easy: 1.0, normal: 1.2, hard: 1.5, hardcore: 2.0 }[selectedDifficulty];
+        const finalScore = Math.max(0, Math.floor((currentScore + 300 + (lives * 50)) * diffMultiplier));
+        currentScore = finalScore;
+        updateScoreUI();
+
+        const tier = getTier(finalScore);
+
+        setTimeout(() => {
+            const name = prompt(
+                `🎉 STAGE CLEAR! (${selectedDifficulty.toUpperCase()})\n` +
+                `최종 점수: ${finalScore}점\n` +
+                `달성 티어: ${tier.icon} ${tier.name}\n\n` +
+                `랭킹에 등록할 이름을 입력하세요:`, 
+                '플레이어'
+            );
+
+            if (name !== null) {
+                saveScore(name, finalScore);
+            }
+            showGameOverModal(true, finalScore);
+        }, 100);
+    }
+
+    function generateRandomPiece() {
+        const tetrisObj = TETRIS_SHAPES[Math.floor(Math.random() * TETRIS_SHAPES.length)];
+        
+        const rand = Math.random();
+        let typeKey = 'NORMAL';
+
+        if (selectedDifficulty === 'easy') {
+            if (rand < 0.05) typeKey = 'BOMB';
+            else if (rand < 0.12) typeKey = 'HEAVY';
+            else if (rand < 0.18) typeKey = 'ICE';
+            else if (rand < 0.22) typeKey = 'LIGHT';
+        } else if (selectedDifficulty === 'normal') {
+            if (rand < 0.10) typeKey = 'BOMB';
+            else if (rand < 0.20) typeKey = 'HEAVY';
+            else if (rand < 0.28) typeKey = 'ICE';
+            else if (rand < 0.35) typeKey = 'LIGHT';
+        } else if (selectedDifficulty === 'hard') {
+            if (rand < 0.15) typeKey = 'BOMB';
+            else if (rand < 0.30) typeKey = 'HEAVY';
+            else if (rand < 0.42) typeKey = 'ICE';
+            else if (rand < 0.50) typeKey = 'LIGHT';
+        } else if (selectedDifficulty === 'hardcore') {
+            if (rand < 0.25) typeKey = 'HEAVY';
+            else if (rand < 0.50) typeKey = 'ICE';
+            else if (rand < 0.70) typeKey = 'LIGHT';
+        }
+
+        const typeInfo = BLOCK_TYPES[typeKey];
+        const blockColor = typeKey === 'NORMAL' ? tetrisObj.color : typeInfo.color;
+
+        return { 
+            shape: tetrisObj.shape, 
+            typeKey: typeKey, 
+            info: typeInfo, 
+            color: blockColor 
+        };
+    }
+
+    function drawNextPiece() {
+        const canvas = document.getElementById('next-canvas');
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (!nextPieceData) return;
+
+        const miniSize = 12;
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+
+        ctx.fillStyle = nextPieceData.color;
+        nextPieceData.shape.forEach(b => {
+            const x = centerX + b.x * miniSize - miniSize / 2;
+            const y = centerY + b.y * miniSize - miniSize / 2;
+            ctx.beginPath();
+            ctx.fillRect(x, y, miniSize - 1, miniSize - 1);
+        });
+
+        document.getElementById('next-type-name').innerText = nextPieceData.info.name;
+        document.getElementById('next-type-name').style.color = nextPieceData.color;
+    }
+
+    function spawnPiece() {
+        if (!gameStarted || gameOver) return;
+
+        if (!nextPieceData) {
+            nextPieceData = generateRandomPiece();
+        }
+
+        const pieceData = nextPieceData;
+        nextPieceData = generateRandomPiece();
+        drawNextPiece();
+
+        const startX = GAME_WIDTH / 2;
+        const startY = 80;
+        const type = pieceData.info;
+
+        const parts = pieceData.shape.map(b => 
+            Bodies.rectangle(
+                startX + b.x * BLOCK_SIZE, 
+                startY + b.y * BLOCK_SIZE, 
+                BLOCK_SIZE - 1, 
+                BLOCK_SIZE - 1, 
+                { render: { fillStyle: pieceData.color } }
+            )
+        );
+
+        currentPiece = Body.create({
+            parts: parts,
+            friction: type.friction,
+            frictionStatic: type.friction,
+            frictionAir: 0.02,
+            restitution: pieceData.typeKey === 'ICE' ? 0.2 : 0.0,
+            density: type.weight
+        });
+
+        currentPiece.customType = pieceData.typeKey;
+        currentPiece.isExploded = false;
+
+        Body.setInertia(currentPiece, currentPiece.inertia * 3);
+        currentPiece.isDead = false;
+
+        Body.setStatic(currentPiece, true);
+        Composite.add(engine.world, currentPiece);
+    }
+
+    function dropPiece() {
+        if (!currentPiece || !gameStarted || gameOver) return;
+
+        Body.setStatic(currentPiece, false);
+        currentPiece = null;
+        
+        currentScore += 50;
+        updateScoreUI();
+
+        setTimeout(spawnPiece, 1200);
+    }
+
+    // 💥 폭발 효과 함수 (사운드 + 화면 흔들림 + 파티클)
+    function triggerExplosion(bombBody) {
+        if (bombBody.isExploded) return;
+        bombBody.isExploded = true;
+
+        const pos = bombBody.position;
+        
+        // 🎵 폭발 사운드 재생
+        gameBGM.playExplosion();
+
+        // 📳 화면 흔들림(Screen Shake) 효과
+        const container = document.getElementById('game-container');
+        container.style.transition = 'transform 0.05s ease';
+        let shakeCount = 0;
+        const shakeInterval = setInterval(() => {
+            const offsetX = (Math.random() - 0.5) * 12;
+            const offsetY = (Math.random() - 0.5) * 12;
+            container.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
+            shakeCount++;
+            if (shakeCount > 6) {
+                clearInterval(shakeInterval);
+                container.style.transform = 'translate(0px, 0px)';
+            }
+        }, 50);
+
+        // ✨ 스파크 불꽃 파티클 생성
+        for (let i = 0; i < 25; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 2 + Math.random() * 6;
+            explosionParticles.push({
+                x: pos.x,
+                y: pos.y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                alpha: 1.0,
+                color: Math.random() < 0.5 ? '#f43f5e' : '#facc15',
+                size: 3 + Math.random() * 4
+            });
+        }
+
+        const allBodies = Composite.allBodies(engine.world);
+        bombBody.parts.forEach(p => p.render.fillStyle = '#f43f5e');
+
+        setTimeout(() => {
+            allBodies.forEach(body => {
+                if (body !== platform && body !== killZone && !body.isStatic) {
+                    const distance = Vector.magnitude(Vector.sub(body.position, pos));
+                    if (distance < 160 && distance > 0) {
+                        const forceMagnitude = (160 - distance) * 0.0015;
+                        const forceVector = Vector.mult(Vector.normalise(Vector.sub(body.position, pos)), forceMagnitude);
+                        Body.applyForce(body, body.position, forceVector);
+                    }
+                }
+            });
+            Composite.remove(engine.world, bombBody);
+        }, 100);
+    }
+
+    Events.on(render, 'afterRender', () => {
+        const ctx = render.context;
+        
+        ctx.beginPath();
+        ctx.setLineDash([6, 6]);
+        ctx.moveTo(0, GOAL_Y);
+        ctx.lineTo(GAME_WIDTH, GOAL_Y);
+        ctx.strokeStyle = '#4ade80';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = '#4ade80';
+        ctx.font = 'bold 12px Pretendard';
+        ctx.fillText('GOAL LINE', GAME_WIDTH - 85, GOAL_Y - 8);
+
+        // ✨ 폭발 파티클 애니메이션 렌더링
+        if (explosionParticles.length > 0) {
+            ctx.save();
+            explosionParticles.forEach((p, index) => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.alpha -= 0.03;
+
+                if (p.alpha <= 0) {
+                    explosionParticles.splice(index, 1);
+                    return;
+                }
+
+                ctx.globalAlpha = p.alpha;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            ctx.restore();
+        }
+
+        const allBodies = Composite.allBodies(engine.world);
+        allBodies.forEach(body => {
+            if (body.customType && !body.isStatic && body !== platform && body !== killZone) {
+                const type = body.customType;
+
+                body.parts.forEach(part => {
+                    if (part === body) return;
+                    const pos = part.position;
+                    const angle = part.angle;
+
+                    ctx.save();
+                    ctx.translate(pos.x, pos.y);
+                    ctx.rotate(angle);
+
+                    if (type === 'HEAVY') {
+                        ctx.fillStyle = '#334155';
+                        ctx.fillRect(-3, -3, 6, 6);
+                    } 
+                    else if (type === 'ICE') {
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                        ctx.lineWidth = 1.5;
+                        ctx.beginPath();
+                        ctx.moveTo(-5, -5);
+                        ctx.lineTo(5, 5);
+                        ctx.stroke();
+                    } 
+                    else if (type === 'BOMB') {
+                        ctx.fillStyle = '#0f172a';
+                        ctx.beginPath();
+                        ctx.arc(0, 0, 4, 0, Math.PI * 2);
+                        ctx.fill();
+                    } 
+                    else if (type === 'LIGHT') {
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                        ctx.beginPath();
+                        ctx.arc(-2, -2, 2, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+
+                    ctx.restore();
+                });
+            }
+        });
+    });
+
+    Events.on(engine, 'afterUpdate', () => {
+        if (!gameStarted || gameOver) return;
+
+        if (selectedDifficulty === 'hardcore') {
+            windTimer++;
+            const windBg = document.getElementById('wind-bg-effect');
+
+            if (windTimer > 180) {
+                windTimer = 0;
+                if (Math.random() < 0.6) {
+                    currentWindForce = (Math.random() < 0.5 ? -1 : 1) * (0.0008 + Math.random() * 0.0012);
+                    document.getElementById('wind-indicator').innerText = `💨 돌풍 주의! (${currentWindForce < 0 ? '◀' : '▶'})`;
+                    document.getElementById('wind-indicator').style.display = 'block';
+                    windBg.classList.add('active');
+                } else {
+                    currentWindForce = 0;
+                    document.getElementById('wind-indicator').style.display = 'none';
+                    windBg.classList.remove('active');
+                }
+            }
+
+            if (currentWindForce !== 0 && currentPiece) {
+                Body.applyForce(currentPiece, currentPiece.position, { x: currentWindForce, y: 0 });
+            }
+        }
+
+        const allBodies = Composite.allBodies(engine.world);
+        let highestY = GAME_HEIGHT;
+
+        allBodies.forEach(body => {
+            if (body !== platform && body !== killZone && body !== currentPiece && !body.isStatic) {
+                body.parts.forEach(part => {
+                    if (part !== body && part.position.y < highestY) {
+                        highestY = part.position.y;
+                    }
+                });
+            }
+        });
+
+        if (highestY <= GOAL_Y) {
+            if (!winHoldTimer) {
+                holdSecondsLeft = 3;
+                document.getElementById('win-timer').innerText = `🎯 버티기 ${holdSecondsLeft}s`;
+                
+                winHoldTimer = setInterval(() => {
+                    holdSecondsLeft -= 1;
+                    if (holdSecondsLeft > 0) {
+                        document.getElementById('win-timer').innerText = `🎯 버티기 ${holdSecondsLeft}s`;
+                    } else {
+                        document.getElementById('win-timer').innerText = `🏆 CLEAR!`;
+                        handleGoalClear();
+                    }
+                }, 1000);
+            }
+        } else {
+            if (winHoldTimer) {
+                clearInterval(winHoldTimer);
+                winHoldTimer = null;
+                document.getElementById('win-timer').innerText = '';
+            }
+        }
+    });
+
+    function handleAction(action) {
+        if (!currentPiece || !gameStarted || gameOver) return;
+
+        const moveSpeed = 18;
+        const rotateAngle = Math.PI / 2;
+
+        switch (action) {
+            case 'left':
+                Body.setPosition(currentPiece, { x: currentPiece.position.x - moveSpeed, y: currentPiece.position.y });
+                break;
+            case 'right':
+                Body.setPosition(currentPiece, { x: currentPiece.position.x + moveSpeed, y: currentPiece.position.y });
+                break;
+            case 'rotate':
+                Body.rotate(currentPiece, rotateAngle);
+                break;
+            case 'rotate-counter':
+                Body.rotate(currentPiece, -rotateAngle);
+                break;
+            case 'drop':
+                dropPiece();
+                break;
+        }
+    }
+
+    const keyMap = {
+        'KeyA': 'key-A', 'ArrowLeft': 'key-A',
+        'KeyD': 'key-D', 'ArrowRight': 'key-D',
+        'KeyW': 'key-W', 'ArrowUp': 'key-W',
+        'KeyS': 'key-S', 'ArrowDown': 'key-S',
+        'Space': 'key-Space'
+    };
+
+    window.addEventListener('keydown', (e) => {
+        if (e.code === 'Space') {
+            e.preventDefault();
+        }
+
+        const targetId = keyMap[e.code];
+        if (targetId) {
+            const el = document.getElementById(targetId);
+            if (el) el.classList.add('active');
+        }
+
+        switch (e.code) {
+            case 'KeyA': case 'ArrowLeft': handleAction('left'); break;
+            case 'KeyD': case 'ArrowRight': handleAction('right'); break;
+            case 'KeyW': case 'ArrowUp': handleAction('rotate'); break;
+            case 'KeyS': case 'ArrowDown': handleAction('rotate-counter'); break;
+            case 'Space': handleAction('drop'); break;
+        }
+    });
+
+    window.addEventListener('keyup', (e) => {
+        const targetId = keyMap[e.code];
+        if (targetId) {
+            const el = document.getElementById(targetId);
+            if (el) el.classList.remove('active');
+        }
+    });
+
+    Events.on(engine, 'collisionStart', (event) => {
+        event.pairs.forEach((pair) => {
+            const { bodyA, bodyB } = pair;
+
+            if (bodyA.parent && bodyA.parent.customType === 'BOMB') triggerExplosion(bodyA.parent);
+            if (bodyB.parent && bodyB.parent.customType === 'BOMB') triggerExplosion(bodyB.parent);
+
+            if (bodyA === killZone || bodyB === killZone) {
+                const fallenPart = bodyA === killZone ? bodyB : bodyA;
+                const parentBlock = fallenPart.parent || fallenPart;
+
+                if (parentBlock && !parentBlock.isDead && parentBlock !== platform && parentBlock !== currentPiece) {
+                    parentBlock.isDead = true;
+
+                    lives -= 1;
+                    currentScore = Math.max(0, currentScore - 30);
+                    document.getElementById('lives').innerText = lives;
+                    updateScoreUI();
+
+                    Composite.remove(engine.world, parentBlock);
+
+                    if (lives <= 0 && !gameOver) {
+                        gameOver = true;
+                        if (winHoldTimer) clearInterval(winHoldTimer);
+                        
+                        setTimeout(() => {
+                            showGameOverModal(false, currentScore);
+                        }, 200);
+                    }
+                }
+            }
+        });
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ultimate Snake - Single & Multiplayer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #0f172a; /* Tailwind slate-900 */
+            color: #f8fafc;
+            touch-action: none; 
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+        }
+        canvas {
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.8);
+            background-color: #1e293b; /* Tailwind slate-800 */
+        }
+        .text-shadow { text-shadow: 2px 2px 4px rgba(0,0,0,0.6); }
+        .tab-active { border-bottom: 2px solid #3b82f6; color: #3b82f6; }
+        .tab-inactive { color: #64748b; }
+        
+        /* Custom scrollbar for small areas if needed */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen">
+
+    <div class="w-full max-w-lg px-4 flex flex-col items-center relative h-full max-h-screen justify-center">
+        
+        <!-- ==================== MAIN MENU ==================== -->
+        <div id="mainMenu" class="flex flex-col items-center justify-center w-full z-20 transition-all duration-300">
+            <h1 class="text-6xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-green-400 via-teal-400 to-blue-500 tracking-widest font-mono text-shadow">
+                SNAKE
+            </h1>
+            <p class="text-slate-400 mb-10 tracking-widest text-sm font-semibold">ULTIMATE EDITION</p>
+            
+            <div class="flex flex-col gap-4 w-64">
+                <button onclick="showGame('single')" class="w-full px-6 py-4 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white rounded-2xl font-bold text-lg shadow-lg transition-transform transform hover:-translate-y-1 flex items-center justify-between group">
+                    <span>싱글플레이</span>
+                    <span class="text-green-400 group-hover:translate-x-1 transition-transform">➔</span>
+                </button>
+                
+                <button onclick="showGame('local')" class="w-full px-6 py-4 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white rounded-2xl font-bold text-lg shadow-lg transition-transform transform hover:-translate-y-1 flex items-center justify-between group">
+                    <span>로컬 2인용</span>
+                    <span class="text-blue-400 group-hover:translate-x-1 transition-transform">➔</span>
+                </button>
+
+                <button onclick="showLobby()" class="w-full px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-2xl font-bold text-lg shadow-lg shadow-blue-500/20 transition-transform transform hover:-translate-y-1 flex items-center justify-between group">
+                    <span>온라인 방 만들기</span>
+                    <span class="text-white group-hover:translate-x-1 transition-transform">➔</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ==================== ONLINE LOBBY ==================== -->
+        <div id="lobbyScreen" class="hidden flex-col items-center w-full max-w-sm bg-slate-800 p-6 rounded-2xl shadow-2xl border border-slate-700 z-20">
+            <h2 class="text-2xl font-bold mb-6 text-white tracking-wider">온라인 멀티플레이</h2>
+            
+            <div class="flex w-full mb-6 border-b border-slate-600">
+                <button id="tabCreate" onclick="switchLobbyTab('create')" class="flex-1 pb-2 text-center font-bold tab-active transition-colors">방 생성</button>
+                <button id="tabJoin" onclick="switchLobbyTab('join')" class="flex-1 pb-2 text-center font-bold tab-inactive transition-colors">방 참가</button>
+            </div>
+
+            <div class="w-full flex flex-col gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 mb-1">방 ID</label>
+                    <input type="text" id="roomIdInput" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 font-mono" placeholder="예: room123">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 mb-1">비밀번호</label>
+                    <input type="password" id="roomPwInput" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500" placeholder="비밀번호 입력">
+                </div>
+                <p id="lobbyError" class="text-red-400 text-sm h-5 font-semibold"></p>
+            </div>
+
+            <div class="w-full flex gap-3 mt-6">
+                <button onclick="goToMenu()" class="flex-1 py-3 bg-slate-700 text-white rounded-xl font-bold hover:bg-slate-600 transition-colors">취소</button>
+                <button id="lobbyActionBtn" onclick="handleLobbyAction()" class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-500 transition-colors">방 만들기</button>
+            </div>
+        </div>
+
+        <!-- ==================== GAME AREA ==================== -->
+        <div id="gameArea" class="hidden flex-col items-center w-full relative">
+            
+            <div class="w-full flex justify-between items-end mb-3 px-2">
+                <h2 id="gameTitle" class="text-xl font-bold tracking-widest font-mono text-shadow">SNAKE</h2>
+                <button id="leaveRoomBtn" onclick="leaveRoom()" class="hidden text-xs bg-red-500/20 text-red-400 px-3 py-1 rounded-md hover:bg-red-500/40 border border-red-500/50 transition-colors">방 나가기</button>
+            </div>
+
+            <!-- Scoreboards -->
+            <div id="scoreBoard" class="flex justify-between w-full mb-3 px-5 py-3 bg-slate-800 rounded-xl shadow-lg border border-slate-700">
+                <!-- Scores injected dynamically via JS -->
+            </div>
+
+            <!-- Canvas Container -->
+            <div class="relative w-full aspect-square max-w-[450px]">
+                <canvas id="gameCanvas" width="400" height="400" class="w-full h-full rounded-xl border border-slate-600"></canvas>
+                
+                <!-- Overlay (Game Over, Waiting) -->
+                <div id="overlayScreen" class="hidden absolute inset-0 bg-slate-900 bg-opacity-80 flex-col items-center justify-center rounded-xl z-10 backdrop-blur-sm transition-opacity duration-300 border border-slate-700">
+                    <h2 id="overlayTitle" class="text-3xl font-black text-white mb-2 tracking-wide text-center px-2"></h2>
+                    <p id="overlayDesc" class="text-slate-300 mb-6 text-center text-sm px-4"></p>
+                    
+                    <div id="overlayButtons" class="flex flex-col gap-3 w-3/4 max-w-[200px]">
+                        <!-- Buttons injected dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <p id="mobileGuide" class="mt-4 text-slate-500 text-xs text-center">조작: 화살표 키 (P1) / WASD (P2)</p>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase Config and Auth Setup
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-snake-app';
+        let firebaseConfig = null;
+        try { firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}'); } catch(e) {}
+        
+        let auth, db, userId;
+        
+        // Wait for auth to complete
+        async function initFirebase() {
+            if (!firebaseConfig || Object.keys(firebaseConfig).length === 0) {
+                console.warn("Firebase config missing. Online mode will not work.");
+                return;
+            }
+            const app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+
+            try {
+                if (typeof __initial_auth_token !== 'undefined') {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                userId = auth.currentUser.uid;
+                console.log("Authenticated as:", userId);
+            } catch (err) {
+                console.error("Auth failed:", err);
+            }
+        }
+        initFirebase();
+
+        const DOM = {
+            mainMenu: document.getElementById("mainMenu"),
+            lobbyScreen: document.getElementById("lobbyScreen"),
+            gameArea: document.getElementById("gameArea"),
+            scoreBoard: document.getElementById("scoreBoard"),
+            canvas: document.getElementById("gameCanvas"),
+            ctx: document.getElementById("gameCanvas").getContext("2d"),
+            overlay: document.getElementById("overlayScreen"),
+            overlayTitle: document.getElementById("overlayTitle"),
+            overlayDesc: document.getElementById("overlayDesc"),
+            overlayBtns: document.getElementById("overlayButtons"),
+            gameTitle: document.getElementById("gameTitle"),
+            leaveRoomBtn: document.getElementById("leaveRoomBtn"),
+            lobbyError: document.getElementById("lobbyError")
+        };
+
+        const TILE_COUNT = 20; 
+        const TILE_SIZE = DOM.canvas.width / TILE_COUNT;
+        const SPEED = 130;
+        const ONLINE_SPEED = 150; // Slightly slower to account for network sync sync
+
+        // Game State structure
+        let state = {
+            mode: 'menu', // single, local, online_host, online_client
+            roomId: null,
+            isGameOver: false,
+            timer: null,
+            speed: SPEED,
+            unsub: null, // Firebase listener unsubscribe
+            
+            p1: { snake: [], dir: {x:0, y:0}, nextDir: {x:0, y:0}, score: 0, color: '#4ade80', headColor: '#22c55e' },
+            p2: { snake: [], dir: {x:0, y:0}, nextDir: {x:0, y:0}, score: 0, color: '#60a5fa', headColor: '#3b82f6' },
+            food: { x: 0, y: 0 }
+        };
+
+        let lobbyMode = 'create'; // 'create' or 'join'
+
+        // Make functions globally accessible for inline HTML onClick handlers
+        window.showGame = showGame;
+        window.showLobby = showLobby;
+        window.goToMenu = goToMenu;
+        window.switchLobbyTab = switchLobbyTab;
+        window.handleLobbyAction = handleLobbyAction;
+        window.leaveRoom = leaveRoom;
+        window.resetLocalGame = resetLocalGame;
+
+        function switchLobbyTab(mode) {
+            lobbyMode = mode;
+            const btnC = document.getElementById("tabCreate");
+            const btnJ = document.getElementById("tabJoin");
+            const actionBtn = document.getElementById("lobbyActionBtn");
+            DOM.lobbyError.textContent = "";
+
+            if (mode === 'create') {
+                btnC.className = "flex-1 pb-2 text-center font-bold tab-active transition-colors";
+                btnJ.className = "flex-1 pb-2 text-center font-bold tab-inactive transition-colors";
+                actionBtn.textContent = "방 만들기";
+            } else {
+                btnJ.className = "flex-1 pb-2 text-center font-bold tab-active transition-colors";
+                btnC.className = "flex-1 pb-2 text-center font-bold tab-inactive transition-colors";
+                actionBtn.textContent = "방 참가";
+            }
+        }
+
+        function showLobby() {
+            if (!userId) { alert("서버 연결 중입니다. 잠시 후 다시 시도해주세요."); return; }
+            DOM.mainMenu.classList.add("hidden");
+            DOM.lobbyScreen.classList.remove("hidden");
+            DOM.lobbyScreen.classList.add("flex");
+            document.getElementById("roomIdInput").value = "";
+            document.getElementById("roomPwInput").value = "";
+            DOM.lobbyError.textContent = "";
+        }
+
+        function goToMenu() {
+            cleanupGame();
+            DOM.lobbyScreen.classList.add("hidden");
+            DOM.lobbyScreen.classList.remove("flex");
+            DOM.gameArea.classList.add("hidden");
+            DOM.gameArea.classList.remove("flex");
+            DOM.mainMenu.classList.remove("hidden");
+            DOM.mainMenu.classList.add("flex");
+        }
+
+        function showGame(mode) {
+            DOM.mainMenu.classList.add("hidden");
+            DOM.mainMenu.classList.remove("flex");
+            DOM.lobbyScreen.classList.add("hidden");
+            DOM.lobbyScreen.classList.remove("flex");
+            DOM.gameArea.classList.remove("hidden");
+            DOM.gameArea.classList.add("flex");
+            
+            state.mode = mode;
+            setupUIForMode();
+
+            if (mode === 'single' || mode === 'local') {
+                resetLocalGame();
+            }
+        }
+
+        function setupUIForMode() {
+            DOM.leaveRoomBtn.classList.add("hidden");
+            if (state.mode === 'single') {
+                DOM.gameTitle.textContent = "SINGLE PLAYER";
+                DOM.gameTitle.className = "text-xl font-bold text-green-400 tracking-widest font-mono text-shadow";
+                DOM.scoreBoard.innerHTML = `
+                    <div class="text-white flex items-center gap-2"><span class="text-green-400 font-bold">SCORE:</span> <span id="s_p1" class="font-mono text-xl">0</span></div>
+                `;
+            } else if (state.mode === 'local') {
+                DOM.gameTitle.textContent = "LOCAL MULTIPLAYER";
+                DOM.gameTitle.className = "text-xl font-bold text-purple-400 tracking-widest font-mono text-shadow";
+                buildMultiScoreboard();
+            } else {
+                DOM.gameTitle.textContent = `ROOM: ${state.roomId}`;
+                DOM.gameTitle.className = "text-xl font-bold text-blue-400 tracking-widest font-mono text-shadow";
+                DOM.leaveRoomBtn.classList.remove("hidden");
+                buildMultiScoreboard();
+            }
+        }
+
+        function buildMultiScoreboard() {
+            DOM.scoreBoard.innerHTML = `
+                <div class="flex flex-col items-start w-1/2">
+                    <span class="text-blue-400 font-bold text-[10px] mb-1">PLAYER 2 (WASD) ${state.mode==='online_client' ? '(YOU)' : ''}</span>
+                    <div class="text-white text-xl font-mono font-bold flex items-center gap-2">
+                        <span class="text-blue-500">■</span> <span id="s_p2">0</span>
+                    </div>
+                </div>
+                <div class="flex flex-col items-end w-1/2 border-l border-slate-700">
+                    <span class="text-green-400 font-bold text-[10px] mb-1">${state.mode==='online_host' ? '(YOU)' : ''} PLAYER 1 (Arrows)</span>
+                    <div class="text-white text-xl font-mono font-bold flex items-center gap-2">
+                        <span id="s_p1">0</span> <span class="text-green-500">■</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function generateFood() {
+            let valid = false;
+            while (!valid) {
+                state.food = { x: Math.floor(Math.random() * TILE_COUNT), y: Math.floor(Math.random() * TILE_COUNT) };
+                valid = true;
+                state.p1.snake.forEach(part => { if (part.x === state.food.x && part.y === state.food.y) valid = false; });
+                if (state.mode !== 'single') {
+                    state.p2.snake.forEach(part => { if (part.x === state.food.x && part.y === state.food.y) valid = false; });
+                }
+            }
+        }
+
+        function isCollision(pos, snakeArr) {
+            return snakeArr.some(part => part.x === pos.x && part.y === pos.y);
+        }
+        function isOutOfBounds(pos) {
+            return pos.x < 0 || pos.x >= TILE_COUNT || pos.y < 0 || pos.y >= TILE_COUNT;
+        }
+
+        function drawGame() {
+            // Background
+            DOM.ctx.fillStyle = "#1e293b"; 
+            DOM.ctx.fillRect(0, 0, DOM.canvas.width, DOM.canvas.height);
+
+            // Food
+            DOM.ctx.fillStyle = "#ef4444";
+            DOM.ctx.beginPath();
+            DOM.ctx.arc(state.food.x * TILE_SIZE + TILE_SIZE/2, state.food.y * TILE_SIZE + TILE_SIZE/2, TILE_SIZE/2 - 2, 0, Math.PI * 2);
+            DOM.ctx.fill();
+
+            // P1
+            drawSnake(state.p1.snake, state.p1.headColor, state.p1.color, state.p1.dir);
+            // P2
+            if (state.mode !== 'single' && state.p2.snake.length > 0) {
+                drawSnake(state.p2.snake, state.p2.headColor, state.p2.color, state.p2.dir);
+            }
+            
+            // Update UI Scores
+            if(document.getElementById("s_p1")) document.getElementById("s_p1").textContent = state.p1.score;
+            if(document.getElementById("s_p2")) document.getElementById("s_p2").textContent = state.p2.score;
+        }
+
+        function drawSnake(snakeArr, headColor, bodyColor, direction) {
+            snakeArr.forEach((part, index) => {
+                DOM.ctx.fillStyle = index === 0 ? headColor : bodyColor;
+                // Add border radius effect by slightly shrinking rect
+                DOM.ctx.fillRect(part.x * TILE_SIZE + 1, part.y * TILE_SIZE + 1, TILE_SIZE - 2, TILE_SIZE - 2);
+
+                // Eyes for head
+                if (index === 0) {
+                    DOM.ctx.fillStyle = "#0f172a";
+                    const eyeSize = 3, offset = 4;
+                    let ex1, ey1, ex2, ey2;
+                    if (direction.x === 1) { ex1 = ex2 = (part.x * TILE_SIZE) + TILE_SIZE - offset - eyeSize; ey1 = (part.y * TILE_SIZE) + offset; ey2 = (part.y * TILE_SIZE) + TILE_SIZE - offset - eyeSize; }
+                    else if (direction.x === -1) { ex1 = ex2 = (part.x * TILE_SIZE) + offset; ey1 = (part.y * TILE_SIZE) + offset; ey2 = (part.y * TILE_SIZE) + TILE_SIZE - offset - eyeSize; }
+                    else if (direction.y === 1) { ey1 = ey2 = (part.y * TILE_SIZE) + TILE_SIZE - offset - eyeSize; ex1 = (part.x * TILE_SIZE) + offset; ex2 = (part.x * TILE_SIZE) + TILE_SIZE - offset - eyeSize; }
+                    else { ey1 = ey2 = (part.y * TILE_SIZE) + offset; ex1 = (part.x * TILE_SIZE) + offset; ex2 = (part.x * TILE_SIZE) + TILE_SIZE - offset - eyeSize; }
+                    DOM.ctx.fillRect(ex1, ey1, eyeSize, eyeSize); DOM.ctx.fillRect(ex2, ey2, eyeSize, eyeSize);
+                }
+            });
+        }
+
+        function showOverlay(title, desc, btnsHtml, titleColor = "text-white") {
+            DOM.overlayTitle.textContent = title;
+            DOM.overlayTitle.className = `text-3xl font-black mb-2 tracking-wide text-center px-2 ${titleColor}`;
+            DOM.overlayDesc.textContent = desc;
+            DOM.overlayBtns.innerHTML = btnsHtml;
+            DOM.overlay.classList.remove("hidden");
+            DOM.overlay.classList.add("flex");
+        }
+        function hideOverlay() {
+            DOM.overlay.classList.add("hidden");
+            DOM.overlay.classList.remove("flex");
+        }
+        function cleanupGame() {
+            if (state.timer) clearTimeout(state.timer);
+            if (state.unsub) { state.unsub(); state.unsub = null; }
+            hideOverlay();
+        }
+
+        function resetLocalGame() {
+            cleanupGame();
+            state.isGameOver = false;
+            state.speed = SPEED;
+            
+            state.p1.snake = [ { x: 10, y: 10 }, { x: 9, y: 10 }, { x: 8, y: 10 } ];
+            state.p1.dir = { x: 1, y: 0 }; state.p1.nextDir = { x: 1, y: 0 };
+            state.p1.score = 0;
+
+            if (state.mode === 'local') {
+                state.p1.snake = [ { x: 16, y: 10 }, { x: 17, y: 10 }, { x: 18, y: 10 } ];
+                state.p1.dir = { x: -1, y: 0 }; state.p1.nextDir = { x: -1, y: 0 };
+                
+                state.p2.snake = [ { x: 3, y: 10 }, { x: 2, y: 10 }, { x: 1, y: 10 } ];
+                state.p2.dir = { x: 1, y: 0 }; state.p2.nextDir = { x: 1, y: 0 };
+                state.p2.score = 0;
+            }
+            generateFood();
+            localGameLoop();
+        }
+
+        function localGameLoop() {
+            if (state.isGameOver || (state.mode !== 'single' && state.mode !== 'local')) return;
+
+            // Apply inputs
+            state.p1.dir = state.p1.nextDir;
+            if (state.mode === 'local') state.p2.dir = state.p2.nextDir;
+
+            const nextP1 = { x: state.p1.snake[0].x + state.p1.dir.x, y: state.p1.snake[0].y + state.p1.dir.y };
+            
+            if (state.mode === 'single') {
+                if (isOutOfBounds(nextP1) || isCollision(nextP1, state.p1.snake)) {
+                    state.isGameOver = true;
+                    showOverlay("게임 오버", `점수: ${state.p1.score}`, `<button onclick="resetLocalGame()" class="w-full py-3 bg-white text-slate-900 rounded-xl font-bold">다시 시작</button><button onclick="goToMenu()" class="w-full py-3 bg-slate-700 text-white border border-slate-600 rounded-xl font-bold">메뉴로</button>`, "text-red-400");
+                    return;
+                }
+                state.p1.snake.unshift(nextP1);
+                if (nextP1.x === state.food.x && nextP1.y === state.food.y) {
+                    state.p1.score += 10; generateFood(); if(state.speed > 50) state.speed -= 2;
+                } else { state.p1.snake.pop(); }
+            } 
+            else if (state.mode === 'local') {
+                const nextP2 = { x: state.p2.snake[0].x + state.p2.dir.x, y: state.p2.snake[0].y + state.p2.dir.y };
+                
+                const p1Dead = isOutOfBounds(nextP1) || isCollision(nextP1, state.p1.snake) || isCollision(nextP1, state.p2.snake) || (nextP1.x === nextP2.x && nextP1.y === nextP2.y);
+                const p2Dead = isOutOfBounds(nextP2) || isCollision(nextP2, state.p2.snake) || isCollision(nextP2, state.p1.snake) || (nextP1.x === nextP2.x && nextP1.y === nextP2.y);
+
+                if (p1Dead || p2Dead) {
+                    state.isGameOver = true;
+                    let title = "무승부!", color = "text-yellow-400";
+                    if (p1Dead && !p2Dead) { title = "P2 승리!"; color = "text-blue-400"; }
+                    else if (p2Dead && !p1Dead) { title = "P1 승리!"; color = "text-green-400"; }
+                    
+                    showOverlay(title, "충돌 발생", `<button onclick="resetLocalGame()" class="w-full py-3 bg-white text-slate-900 rounded-xl font-bold">다시 시작</button><button onclick="goToMenu()" class="w-full py-3 bg-slate-700 text-white border border-slate-600 rounded-xl font-bold">메뉴로</button>`, color);
+                    return;
+                }
+
+                state.p1.snake.unshift(nextP1);
+                if (nextP1.x === state.food.x && nextP1.y === state.food.y) { state.p1.score += 10; generateFood(); } else { state.p1.snake.pop(); }
+                
+                state.p2.snake.unshift(nextP2);
+                if (nextP2.x === state.food.x && nextP2.y === state.food.y) { state.p2.score += 10; generateFood(); } else { state.p2.snake.pop(); }
+            }
+
+            drawGame();
+            state.timer = setTimeout(localGameLoop, state.speed);
+        }
+
+
+        function getRoomRef(rId) {
+            return doc(db, 'artifacts', appId, 'public', 'data', 'rooms', rId);
+        }
+
+        async function handleLobbyAction() {
+            if (!userId) return;
+            const rId = document.getElementById("roomIdInput").value.trim();
+            const pw = document.getElementById("roomPwInput").value.trim();
+
+            if(!rId || !pw) { DOM.lobbyError.textContent = "ID와 비밀번호를 모두 입력하세요."; return; }
+            DOM.lobbyError.textContent = "처리 중...";
+
+            const roomRef = getRoomRef(rId);
+
+            if (lobbyMode === 'create') {
+                try {
+                    const docSnap = await getDoc(roomRef);
+                    if (docSnap.exists()) { DOM.lobbyError.textContent = "이미 존재하는 방입니다."; return; }
+                    
+                    // Host Initial State Setup
+                    const initialState = {
+                        status: 'waiting',
+                        password: pw,
+                        hostId: userId,
+                        clientId: null,
+                        state: {
+                            p1Snake: [ { x: 16, y: 10 }, { x: 17, y: 10 }, { x: 18, y: 10 } ],
+                            p2Snake: [],
+                            food: { x: 10, y: 5 },
+                            p1Score: 0, p2Score: 0,
+                            winner: null
+                        },
+                        p1Dir: {x: -1, y: 0},
+                        p2Dir: {x: 1, y: 0}
+                    };
+                    await setDoc(roomRef, initialState);
+                    state.roomId = rId;
+                    showGame('online_host');
+                    startOnlineHostMode(roomRef);
+
+                } catch (e) {
+                    DOM.lobbyError.textContent = "오류 발생: " + e.message;
+                }
+            } else { // JOIN
+                try {
+                    const docSnap = await getDoc(roomRef);
+                    if (!docSnap.exists()) { DOM.lobbyError.textContent = "방을 찾을 수 없습니다."; return; }
+                    const data = docSnap.data();
+                    if (data.password !== pw) { DOM.lobbyError.textContent = "비밀번호가 틀렸습니다."; return; }
+                    if (data.clientId) { DOM.lobbyError.textContent = "방이 가득 찼습니다."; return; }
+
+                    await updateDoc(roomRef, { clientId: userId, status: 'playing' });
+                    state.roomId = rId;
+                    showGame('online_client');
+                    startOnlineClientMode(roomRef);
+
+                } catch (e) {
+                    DOM.lobbyError.textContent = "오류 발생: " + e.message;
+                }
+            }
+        }
+
+        // --- HOST LOGIC ---
+        function startOnlineHostMode(roomRef) {
+            cleanupGame();
+            showOverlay("대기 중...", `방 ID: ${state.roomId}\n비밀번호를 상대방에게 알려주세요.`, `<button onclick="leaveRoom()" class="w-full py-3 bg-red-600 text-white rounded-xl font-bold">방 파기</button>`);
+            
+            // Generate initial food for Host
+            generateFood(); 
+            let hostP1Dir = {x: -1, y: 0};
+            state.p1.nextDir = {x: -1, y: 0};
+            
+            state.unsub = onSnapshot(roomRef, (doc) => {
+                const data = doc.data();
+                if (!data) return leaveRoom(true);
+                
+                // Status changed to playing (Client joined)
+                if (data.status === 'playing' && !state.timer && data.clientId) {
+                    hideOverlay();
+                    state.isGameOver = false;
+                    // Start Host loop
+                    state.timer = setInterval(() => hostGameStep(roomRef, data), ONLINE_SPEED);
+                }
+            });
+        }
+
+        async function hostGameStep(roomRef, currentDbData) {
+            if (state.isGameOver) return;
+            
+            // Read latest client direction from DB
+            const p2Dir = currentDbData.p2Dir || {x: 1, y: 0};
+            
+            // Use Host's local fast input for P1
+            hostP1Dir = state.p1.nextDir; 
+            
+            // Read current positions
+            let st = currentDbData.state;
+            if(!st.p2Snake || st.p2Snake.length === 0) {
+                // Initialize P2
+                st.p2Snake = [ { x: 3, y: 10 }, { x: 2, y: 10 }, { x: 1, y: 10 } ];
+            }
+
+            const nextP1 = { x: st.p1Snake[0].x + hostP1Dir.x, y: st.p1Snake[0].y + hostP1Dir.y };
+            const nextP2 = { x: st.p2Snake[0].x + p2Dir.x, y: st.p2Snake[0].y + p2Dir.y };
+
+            const p1Dead = isOutOfBounds(nextP1) || isCollision(nextP1, st.p1Snake) || isCollision(nextP1, st.p2Snake) || (nextP1.x === nextP2.x && nextP1.y === nextP2.y);
+            const p2Dead = isOutOfBounds(nextP2) || isCollision(nextP2, st.p2Snake) || isCollision(nextP2, st.p1Snake) || (nextP1.x === nextP2.x && nextP1.y === nextP2.y);
+
+            if (p1Dead || p2Dead) {
+                state.isGameOver = true;
+                clearInterval(state.timer);
+                let winner = 'draw';
+                if (p1Dead && !p2Dead) winner = 'p2';
+                if (p2Dead && !p1Dead) winner = 'p1';
+                
+                await updateDoc(roomRef, { 
+                    status: 'ended', 
+                    'state.winner': winner,
+                    'state.p1Snake': st.p1Snake,
+                    'state.p2Snake': st.p2Snake
+                });
+                renderDbState({ ...st, winner: winner });
+                showOnlineResult(winner);
+                return;
+            }
+
+            // Move P1
+            st.p1Snake.unshift(nextP1);
+            if (nextP1.x === state.food.x && nextP1.y === state.food.y) { st.p1Score += 10; generateFood(); } else { st.p1Snake.pop(); }
+            
+            // Move P2
+            st.p2Snake.unshift(nextP2);
+            if (nextP2.x === state.food.x && nextP2.y === state.food.y) { st.p2Score += 10; generateFood(); } else { st.p2Snake.pop(); }
+
+            // Write to DB
+            const updatedState = {
+                'state.p1Snake': st.p1Snake,
+                'state.p2Snake': st.p2Snake,
+                'state.food': state.food,
+                'state.p1Score': st.p1Score,
+                'state.p2Score': st.p2Score,
+                'p1Dir': hostP1Dir // Optional: just so client can see
+            };
+            
+            // Optimistic render for Host
+            renderDbState({...st, food: state.food});
+            
+            // Fire & forget update
+            updateDoc(roomRef, updatedState).catch(e => console.error(e));
+        }
+
+
+        // --- CLIENT LOGIC ---
+        function startOnlineClientMode(roomRef) {
+            cleanupGame();
+            state.p2.nextDir = {x: 1, y: 0}; // Client starting dir
+            
+            state.unsub = onSnapshot(roomRef, (doc) => {
+                const data = doc.data();
+                if (!data) return leaveRoom(true);
+
+                if (data.status === 'playing') {
+                    hideOverlay();
+                    renderDbState(data.state);
+                } else if (data.status === 'ended') {
+                    renderDbState(data.state);
+                    showOnlineResult(data.state.winner);
+                } else if (data.status === 'waiting') {
+                     showOverlay("대기 중", "호스트 연결 지연", "");
+                }
+            });
+        }
+
+        async function sendClientInput(roomRef, newDir) {
+            // Client only updates p2Dir in Firestore
+            try {
+                await updateDoc(roomRef, { p2Dir: newDir });
+            } catch (e) { console.error("Input sync failed", e); }
+        }
+
+
+        function renderDbState(dbState) {
+            if (!dbState) return;
+            state.p1.snake = dbState.p1Snake || [];
+            state.p2.snake = dbState.p2Snake || [];
+            state.food = dbState.food || {x:0, y:0};
+            state.p1.score = dbState.p1Score || 0;
+            state.p2.score = dbState.p2Score || 0;
+            
+            // Infer directions for drawing eyes correctly
+            if(state.p1.snake.length > 1) {
+                state.p1.dir = { x: state.p1.snake[0].x - state.p1.snake[1].x, y: state.p1.snake[0].y - state.p1.snake[1].y };
+            }
+            if(state.p2.snake.length > 1) {
+                state.p2.dir = { x: state.p2.snake[0].x - state.p2.snake[1].x, y: state.p2.snake[0].y - state.p2.snake[1].y };
+            }
+            
+            drawGame();
+        }
+
+        function showOnlineResult(winner) {
+            let title = "무승부", color = "text-yellow-400";
+            let me = state.mode === 'online_host' ? 'p1' : 'p2';
+            
+            if (winner === 'p1') {
+                title = me === 'p1' ? "승리!" : "패배";
+                color = me === 'p1' ? "text-green-400" : "text-red-400";
+            } else if (winner === 'p2') {
+                title = me === 'p2' ? "승리!" : "패배";
+                color = me === 'p2' ? "text-blue-400" : "text-red-400";
+            }
+            
+            showOverlay(title, "게임 종료", `<button onclick="leaveRoom()" class="w-full py-3 bg-slate-700 text-white rounded-xl font-bold">나가기</button>`, color);
+        }
+
+        async function leaveRoom(forced = false) {
+            cleanupGame();
+            if (state.roomId && userId && !forced) {
+                // Attempt cleanup in Firestore
+                const roomRef = getRoomRef(state.roomId);
+                if (state.mode === 'online_host') {
+                    // Host leaving deletes or invalidates the room
+                    try { await updateDoc(roomRef, { status: 'ended' }); } catch(e){}
+                } else if (state.mode === 'online_client') {
+                    // Client leaving opens the slot
+                    try { await updateDoc(roomRef, { clientId: null, status: 'waiting' }); } catch(e){}
+                }
+            }
+            state.roomId = null;
+            goToMenu();
+        }
+
+        document.addEventListener("keydown", (e) => {
+            if (state.mode === 'menu' || state.isGameOver) return;
+            
+            // Prevent scrolling
+            if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," "].includes(e.key)) {
+                e.preventDefault();
+            }
+
+            // P1 Input (Arrow keys) - Used in Single, Local, and Online Host
+            if (state.mode === 'single' || state.mode === 'local' || state.mode === 'online_host') {
+                let p1Current = state.p1.dir;
+                if (e.key === "ArrowLeft" && p1Current.x !== 1) state.p1.nextDir = { x: -1, y: 0 };
+                else if (e.key === "ArrowUp" && p1Current.y !== 1) state.p1.nextDir = { x: 0, y: -1 };
+                else if (e.key === "ArrowRight" && p1Current.x !== -1) state.p1.nextDir = { x: 1, y: 0 };
+                else if (e.key === "ArrowDown" && p1Current.y !== -1) state.p1.nextDir = { x: 0, y: 1 };
+            }
+            
+            // P2 Input (WASD) - Used in Local and Online Client
+            if (state.mode === 'local' || state.mode === 'online_client') {
+                const key = e.key.toLowerCase();
+                let p2Current = state.mode === 'online_client' ? state.p2.nextDir : state.p2.dir;
+                let newDir = null;
+
+                if (key === "a" && p2Current.x !== 1) newDir = { x: -1, y: 0 };
+                else if (key === "w" && p2Current.y !== 1) newDir = { x: 0, y: -1 };
+                else if (key === "d" && p2Current.x !== -1) newDir = { x: 1, y: 0 };
+                else if (key === "s" && p2Current.y !== -1) newDir = { x: 0, y: 1 };
+
+                if (newDir) {
+                    state.p2.nextDir = newDir;
+                    // If online client, send to Firestore immediately
+                    if (state.mode === 'online_client' && state.roomId) {
+                        sendClientInput(getRoomRef(state.roomId), newDir);
+                    }
+                }
+            }
+        });
+
+    </script>
+</body>
+</html>

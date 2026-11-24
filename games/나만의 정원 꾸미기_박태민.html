@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>내 정원 만들기</title>
+
+<style>
+*{
+  box-sizing:border-box;
+  user-select:none;
+}
+
+html,body{
+  margin:0;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  font-family:Arial,"Malgun Gothic",sans-serif;
+  background:#dff7ff;
+}
+
+body{
+  position:relative;
+}
+
+/* 상단 정보 바 */
+.top{
+  position:fixed;
+  z-index:1000;
+  top:8px;
+  left:50%;
+  transform:translateX(-50%);
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:6px 16px;
+  border-radius:18px;
+  background:rgba(255,255,255,.95);
+  box-shadow:0 3px 12px rgba(0,0,0,.15);
+}
+
+.title{ font-size:16px; font-weight:800; color:#315d32; white-space:nowrap; }
+.similarity{ font-size:17px; font-weight:900; color:#3e7d39; white-space:nowrap; }
+.target{ font-size:14px; font-weight:800; color:#777; white-space:nowrap; }
+.stageText{ font-size:14px; font-weight:900; color:#4c7b48; white-space:nowrap; }
+
+/* 다음 버튼 */
+.nextStage{
+  position:fixed;
+  z-index:1100;
+  top:52px;
+  left:50%;
+  transform:translateX(-50%);
+  border:0;
+  border-radius:20px;
+  padding:7px 20px;
+  font-size:14px;
+  font-weight:900;
+  color:white;
+  background:#aaa;
+  cursor:not-allowed;
+  opacity:.55;
+  transition:.25s;
+}
+
+.nextStage.ready{
+  background:#4c9848;
+  opacity:1;
+  cursor:pointer;
+  box-shadow:0 0 12px rgba(95,190,82,1);
+  animation:glow .9s infinite alternate;
+}
+
+@keyframes glow{
+  from{ box-shadow:0 0 5px rgba(95,190,82,.7); }
+  to{ box-shadow:0 0 15px rgba(95,190,82,1); }
+}
+
+/* 좌우 패널 */
+.game{ position:absolute; left:0; right:0; top:0; bottom:0; display:flex; }
+.panel{ position:relative; width:50%; height:100%; overflow:hidden; }
+.panel + .panel{ border-left:4px solid rgba(255,255,255,.9); }
+
+.panelLabel{
+  position:absolute;
+  z-index:100;
+  top:12px;
+  right:16px;
+  padding:5px 14px;
+  border-radius:15px;
+  background:rgba(255,255,255,.9);
+  color:#456f43;
+  font-weight:900;
+  font-size:14px;
+  box-shadow:0 2px 6px rgba(0,0,0,.1);
+}
+
+/* 2줄 배치 툴바 */
+.toolbar{
+  position:absolute;
+  z-index:200;
+  top:10px;
+  left:10px;
+  right:10px;
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  padding:8px;
+  border-radius:14px;
+  background:rgba(255,255,255,.92);
+  backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);
+  border:1px solid rgba(255,255,255,.95);
+  box-shadow:0 4px 10px rgba(0,0,0,.1);
+}
+
+.tool-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:4px;
+  align-items:center;
+  justify-content:flex-start;
+}
+
+.tool{
+  flex:0 0 auto;
+  height:28px;
+  padding:2px 8px;
+  border-radius:6px;
+  border:1px solid rgba(100,100,100,.3);
+  background:rgba(255,255,255,.95);
+  color:#333;
+  font-size:11px;
+  font-weight:800;
+  cursor:pointer;
+  transition:all .15s;
+}
+
+.tool.active{ background:#519b45; color:white; border-color:#3c7a31; }
+.tool.action{ background:#3b7bb3; color:white; border-color:#2a5c88; }
+.tool.bgm-btn{ background:#e67e22; color:white; border-color:#d35400; margin-left:auto; }
+
+/* 정원 배경 */
+.garden{
+  position:absolute;
+  inset:0;
+  overflow:hidden;
+  background:linear-gradient(to bottom, #bde9f7 0%, #bde9f7 36%, #a9dc8e 36%, #91cd7c 100%);
+}
+
+.garden::after{
+  content:"";
+  position:absolute;
+  inset:36% 0 0 0;
+  opacity:.23;
+  pointer-events:none;
+  background-image:radial-gradient(#55a75b 1.4px,transparent 1.4px);
+  background-size:14px 14px;
+}
+
+.cloud{ position:absolute; width:70px; height:28px; border-radius:30px; background:white; opacity:.85; }
+.cloud::before, .cloud::after{ content:""; position:absolute; border-radius:50%; background:white; }
+.cloud::before{ width:40px; height:40px; left:12px; top:-17px; }
+.cloud::after{ width:34px; height:34px; right:8px; top:-11px; }
+.c1{left:18%;top:11%} .c2{right:18%;top:17%}
+
+.mountain{
+  position:absolute; bottom:64%; width:0; height:0;
+  border-left:90px solid transparent; border-right:90px solid transparent; border-bottom:95px solid #93bf99; opacity:.75;
+}
+.m1{left:7%} .m2{left:42%} .m3{right:4%}
+
+/* 오브젝트 스타일 */
+.obj{ position:absolute; transform:translate(-50%,-50%); z-index:20; cursor:grab; touch-action:none; }
+.obj.dragging{ cursor:grabbing; z-index:500; }
+
+.tree{ width:58px; height:88px; }
+.tree .trunk{ position:absolute; left:23px; bottom:0; width:15px; height:37px; border-radius:4px; background:#744b2b; }
+.tree .crown{ position:absolute; left:3px; top:3px; width:52px; height:55px; border-radius:50%; background:#3f9b48; box-shadow:12px 18px 0 #348a3e, -8px 20px 0 #4ca84f; }
+.tree .shine{ position:absolute; left:14px; top:8px; width:22px; height:19px; border-radius:50%; background:#58b85a; }
+
+.rock{ width:58px; height:34px; }
+.rockBody{ position:absolute; inset:2px; border-radius:50%; background:#777b79; box-shadow:inset 7px 6px 0 rgba(255,255,255,.08), inset -6px -5px 0 rgba(0,0,0,.08); }
+
+.water{ width:120px; height:70px; border-radius:50%; background:#4bb1d3; border:7px solid #7bc6df; box-shadow:inset 0 0 0 2px rgba(255,255,255,.15), 0 3px 5px rgba(0,0,0,.12); }
+.water::after{ content:""; position:absolute; left:26px; top:15px; width:35px; height:7px; border-radius:10px; background:rgba(255,255,255,.65); }
+
+.flower{ width:40px; height:55px; }
+.flowerStem{ position:absolute; left:18px; top:24px; width:4px; height:31px; background:#418e42; }
+.petal{ position:absolute; width:16px; height:20px; border-radius:50%; background:#d94ec2; }
+.p1{left:4px;top:9px} .p2{left:19px;top:9px} .p3{left:11px;top:0} .p4{left:11px;top:18px}
+.flowerCenter{ position:absolute; left:12px; top:12px; width:14px; height:14px; border-radius:50%; background:#ffd63e; }
+
+.house{ width:105px; height:115px; }
+.houseBody{ position:absolute; left:12px; top:38px; width:81px; height:70px; background:#e8453f; border:4px solid #a74d32; border-radius:2px; }
+.roof{ position:absolute; left:2px; top:0; width:101px; height:55px; background:#b64b39; clip-path:polygon(50% 0,100% 100%,0 100%); }
+.roofShade{ position:absolute; left:14px; top:45px; width:77px; height:8px; background:#8f3b31; }
+.chimney{ position:absolute; right:13px; top:8px; width:17px; height:38px; background:#874b3b; border:3px solid #704032; z-index:-1; }
+.door{ position:absolute; left:43px; bottom:0; width:26px; height:43px; background:#603b2c; border:3px solid #4a3026; }
+.knob{ position:absolute; right:4px; top:19px; width:5px; height:5px; border-radius:50%; background:#ffd34e; }
+
+.bench{ width:70px; height:50px; }
+.benchSeat{ position:absolute; left:5px; top:10px; width:60px; height:11px; border-radius:5px; background:#a86735; border:3px solid #784522; }
+.benchBack{ position:absolute; left:5px; top:0; width:60px; height:10px; border-radius:5px; background:#b8733d; border:3px solid #784522; }
+.benchLeg1, .benchLeg2{ position:absolute; top:20px; width:7px; height:27px; background:#684225; }
+.benchLeg1{left:14px} .benchLeg2{right:14px}
+.benchSupport{ position:absolute; left:7px; top:26px; width:56px; height:5px; background:#6d4227; }
+
+.fence{ width:76px; height:38px; }
+.fencePost{ position:absolute; top:0; width:8px; height:38px; border-radius:2px; background:#754322; border:2px solid #61371d; }
+.fp1{left:0} .fp2{left:34px} .fp3{right:0}
+.fenceRail1, .fenceRail2{ position:absolute; left:2px; width:70px; height:7px; border-radius:3px; background:#a66a38; border:2px solid #70421f; }
+.fenceRail1{top:7px} .fenceRail2{top:25px}
+
+.fountain{ width:95px; height:110px; }
+.fBase{ position:absolute; left:5px; bottom:0; width:85px; height:23px; border-radius:50%; background:#56b6d7; border:4px solid #777; }
+.fPillar{ position:absolute; left:39px; bottom:18px; width:18px; height:55px; background:#c6c6c2; border:3px solid #777; }
+.fBowl{ position:absolute; left:20px; top:48px; width:55px; height:22px; border-radius:50%; background:#d1d1cc; border:3px solid #777; }
+.fTop{ position:absolute; left:34px; top:39px; width:27px; height:13px; border-radius:50%; background:#d2d2cd; border:3px solid #777; }
+.fJet{ position:absolute; left:46px; top:7px; width:5px; height:35px; background:#57c8e8; border-radius:5px; }
+
+.bee{ width:40px; height:30px; }
+.beeBody{ position:absolute; left:8px; top:8px; width:26px; height:18px; border-radius:50%; background:#f6c52e; border:2px solid #333; }
+.beeBody::before, .beeBody::after{ content:""; position:absolute; top:-8px; width:14px; height:11px; border-radius:50%; background:rgba(255,255,255,.85); border:1px solid #aaa; }
+.beeBody::before{left:1px} .beeBody::after{right:1px}
+.beeStripe{ position:absolute; top:8px; left:16px; width:4px; height:18px; background:#333; }
+
+.butterfly{ width:40px; height:35px; }
+.bWing{ position:absolute; width:18px; height:24px; background:#c54fd0; border-radius:70% 45% 70% 45%; }
+.bw1{ left:0; top:2px; transform:rotate(-15deg); }
+.bw2{ right:0; top:2px; transform:rotate(15deg); }
+.bBody{ position:absolute; left:18px; top:6px; width:5px; height:26px; border-radius:4px; background:#555; }
+
+/* 안내 메시지 */
+.message{
+  position:fixed;
+  z-index:1200;
+  top:95px;
+  left:50%;
+  transform:translateX(-50%);
+  padding:6px 14px;
+  border-radius:14px;
+  background:rgba(255,255,255,.95);
+  font-size:12px;
+  font-weight:900;
+  color:#315d32;
+  pointer-events:none;
+  transition:opacity 0.3s;
+  box-shadow:0 2px 8px rgba(0,0,0,.1);
+}
+
+@media(max-width:800px){
+  .top{ gap:6px; padding:4px 8px; }
+  .title{ font-size:12px; }
+  .similarity{ font-size:13px; }
+  .target, .stageText{ font-size:11px; }
+  .nextStage{ top:48px; font-size:12px; padding:5px 14px; }
+  .panelLabel{ top:80px; right:8px; font-size:11px; }
+  .toolbar{ top:6px; left:6px; right:6px; padding:5px; }
+  .tool{ height:25px; padding:2px 5px; font-size:10px; }
+  .obj{ transform:translate(-50%,-50%) scale(.7); }
+}
+</style>
+</head>
+
+<body>
+
+<div class="top">
+  <div class="title">🌱 내 정원</div>
+  <div class="stageText" id="stageText">1단계</div>
+  <div class="similarity" id="similarity">유사도 0%</div>
+  <div class="target">목표 70%</div>
+</div>
+
+<button id="nextBtn" class="nextStage" disabled>
+  다음 단계 ➜
+</button>
+
+<div id="message" class="message">
+  오른쪽 예시를 보고 정원을 꾸며보세요!
+</div>
+
+<div class="game">
+
+  <!-- 왼쪽: 내 정원 (2줄 툴바) -->
+  <div class="panel">
+    
+    <div class="toolbar">
+      <!-- 1번째 줄: 배치할 아이템 리스트 -->
+      <div class="tool-row">
+        <button class="tool active" data-tool="tree">🌳 나무</button>
+        <button class="tool" data-tool="rock">🪨 바위</button>
+        <button class="tool" data-tool="water">💧 물</button>
+        <button class="tool" data-tool="flower">🌸 꽃</button>
+        <button class="tool" data-tool="house">🏠 집</button>
+        <button class="tool" data-tool="bench">🪑 벤치</button>
+        <button class="tool" data-tool="fence">🪵 울타리</button>
+        <button class="tool" data-tool="fountain">⛲ 분수</button>
+        <button class="tool" data-tool="bee">🐝 벌</button>
+        <button class="tool" data-tool="butterfly">🦋 나비</button>
+      </div>
+      <!-- 2번째 줄: 기능 및 BGM 버튼 -->
+      <div class="tool-row">
+        <button class="tool action" data-tool="delete">🗑 삭제</button>
+        <button class="tool action" id="checkBtn">🔍 확인</button>
+        <button class="tool action" id="resetBtn">↩ 다시</button>
+        <button class="tool bgm-btn" id="bgmBtn">🎵 엄마의 왈츠 BGM OFF</button>
+      </div>
+    </div>
+
+    <div id="myGarden" class="garden">
+      <div class="cloud c1"></div>
+      <div class="cloud c2"></div>
+      <div class="mountain m1"></div>
+      <div class="mountain m2"></div>
+      <div class="mountain m3"></div>
+    </div>
+  </div>
+
+  <!-- 오른쪽: 보기 예시 -->
+  <div class="panel">
+    <div class="panelLabel">👀 보기 예시</div>
+    <div id="exampleGarden" class="garden">
+      <div class="cloud c1"></div>
+      <div class="cloud c2"></div>
+      <div class="mountain m1"></div>
+      <div class="mountain m2"></div>
+      <div class="mountain m3"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* =====================================================
+   단계 데이터 (1, 2, 3단계 순서)
+===================================================== */
+const stages = [
+  /* 1단계 */
+  {
+    name:"1단계",
+    objects:[
+      ["tree",5,48], ["tree",5,61], ["tree",5,74], ["tree",5,88],
+      ["tree",95,48], ["tree",95,61], ["tree",95,74], ["tree",95,88],
+      ["bench",44,48], ["water",44,61],
+      ["rock",16,61], ["rock",24,61], ["rock",32,61], ["rock",39,54], ["rock",49,54],
+      ["rock",54,61], ["rock",38,68], ["rock",49,68],
+      ["house",72,47], ["fence",63,59], ["fence",71,59], ["fence",79,59],
+      ["flower",18,75], ["flower",30,87], ["flower",44,78], ["flower",57,91], ["flower",65,74], ["flower",79,83],
+      ["butterfly",30,72], ["butterfly",85,66]
+    ]
+  },
+  /* 2단계 */
+  {
+    name:"2단계",
+    objects:[
+      ["house",11,57], ["house",50,44], ["house",93,51],
+      ["bench",33,46], ["bench",67,46], ["fountain",49,82],
+      ["tree",7,72], ["tree",17,83], ["tree",22,62], ["tree",28,93],
+      ["tree",31,70], ["tree",41,50], ["tree",41,73], ["tree",41,92],
+      ["tree",58,50], ["tree",58,72], ["tree",56,92], ["tree",70,64],
+      ["tree",71,84], ["tree",78,57], ["tree",83,72], ["tree",94,62],
+      ["rock",14,71], ["rock",19,76], ["rock",28,81], ["rock",49,57], ["rock",49,65], ["rock",49,73],
+      ["rock",37,84], ["rock",62,84], ["rock",79,72], ["rock",87,63], ["rock",93,72],
+      ["flower",41,62], ["flower",58,62], ["butterfly",28,53], ["butterfly",72,53],
+      ["bee",7,86], ["bee",17,95], ["bee",80,95], ["bee",92,88]
+    ]
+  },
+  /* 3단계 */
+  {
+    name:"3단계",
+    objects:[
+      ["house",50,36], ["house",6,48], ["house",94,48],
+      ["house",6,93], ["house",54,93], ["house",93,93],
+      ["fence",26,46], ["fence",75,46], ["fence",16,96], ["fence",45,96], ["fence",74,96],
+      ["tree",42,45], ["tree",58,45], ["bench",25,54], ["bench",17,83],
+      ["rock",6,59], ["rock",6,69], ["rock",18,69], ["rock",30,69], ["rock",41,69],
+      ["rock",60,69], ["rock",70,69], ["rock",80,69], ["rock",92,69],
+      ["rock",6,79], ["rock",30,79], ["rock",30,88], ["rock",92,79],
+      ["rock",50,49], ["rock",50,59], ["fountain",50,70], ["water",70,81],
+      ["flower",17,51], ["flower",33,51], ["flower",25,60], ["flower",23,95], ["flower",38,95],
+      ["flower",63,74], ["flower",70,71], ["flower",77,74], ["flower",80,81], ["flower",77,87], ["flower",70,90], ["flower",63,87], ["flower",60,81],
+      ["bee",78,52], ["bee",83,52], ["bee",80,57],
+      ["butterfly",52,11], ["butterfly",35,20], ["butterfly",67,20], ["butterfly",16,31], ["butterfly",83,31], ["butterfly",67,54]
+    ]
+  }
+];
+
+let currentStage = 0; // 1단계부터 시작
+let selectedTool = "tree";
+let objectId = 0;
+let success = false;
+let isPlayingBgm = false;
+
+/* =====================================================
+   '엄마의 왈츠 (Mother's Waltz)' 정밀 합성 BGM Engine
+===================================================== */
+let audioCtx = null;
+let bgmTimer = null;
+
+// '엄마의 왈츠' C Major 3/4박자 피아노 악보 노트 (오른손 멜로디 + 왼손 왈츠 반주)
+const mothersWaltzNotes = [
+  // 메인 A 멜로디 파트 (잔잔하고 따뜻함)
+  { note: "E5", dur: 1.5, bass: "C3" }, { note: "D5", dur: 0.5 }, { note: "C5", dur: 1.0 },
+  { note: "G4", dur: 2.0, bass: "G3" }, { note: "A4", dur: 1.0 },
+  { note: "C5", dur: 1.5, bass: "A3" }, { note: "D5", dur: 0.5 }, { note: "E5", dur: 1.0 },
+  { note: "D5", dur: 3.0, bass: "F3" },
+  
+  { note: "E5", dur: 1.5, bass: "C3" }, { note: "D5", dur: 0.5 }, { note: "C5", dur: 1.0 },
+  { note: "G4", dur: 2.0, bass: "E3" }, { note: "C5", dur: 1.0 },
+  { note: "F5", dur: 1.5, bass: "F3" }, { note: "E5", dur: 0.5 }, { note: "D5", dur: 1.0 },
+  { note: "C5", dur: 3.0, bass: "C3" },
+
+  // 서정적 B 멜로디 파트
+  { note: "A5", dur: 1.5, bass: "F3" }, { note: "G5", dur: 0.5 }, { note: "F5", dur: 1.0 },
+  { note: "E5", dur: 2.0, bass: "C3" }, { note: "G5", dur: 1.0 },
+  { note: "D5", dur: 1.5, bass: "G3" }, { note: "E5", dur: 0.5 }, { note: "F5", dur: 1.0 },
+  { note: "E5", dur: 3.0, bass: "C3" }
+];
+
+const noteToFreq = {
+  "C3": 130.81, "E3": 164.81, "F3": 174.61, "G3": 196.00, "A3": 220.00,
+  "G4": 392.00, "A4": 440.00, "C5": 523.25, "D5": 587.33, "E5": 659.25,
+  "F5": 698.46, "G5": 783.99, "A5": 880.00
+};
+
+function playTone(freq, duration, isBass = false) {
+  if (!audioCtx || !freq) return;
+
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+
+  osc.type = isBass ? 'sine' : 'triangle'; // 오른손은 부드러운 삼각파, 왼손은 울림 강한 사인파
+  osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+
+  const vol = isBass ? 0.05 : 0.09;
+  gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration * 0.55);
+
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+
+  osc.start();
+  osc.stop(audioCtx.currentTime + duration * 0.6);
+}
+
+function startMothersWaltz() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+
+  let index = 0;
+  
+  function nextStep() {
+    if (!isPlayingBgm) return;
+
+    const item = mothersWaltzNotes[index % mothersWaltzNotes.length];
+    
+    // 오른손 멜로디 재생
+    playTone(noteToFreq[item.note], item.dur);
+    
+    // 왼손 베이스(왈츠 반주) 재생
+    if (item.bass) {
+      playTone(noteToFreq[item.bass], item.dur, true);
+    }
+
+    index++;
+    const stepDelay = item.dur * 380; // 왈츠템포 조절
+    bgmTimer = setTimeout(nextStep, stepDelay);
+  }
+
+  nextStep();
+}
+
+function stopMothersWaltz() {
+  if (bgmTimer) clearTimeout(bgmTimer);
+}
+
+const bgmBtn = document.getElementById("bgmBtn");
+bgmBtn.addEventListener("click", () => {
+  isPlayingBgm = !isPlayingBgm;
+  if (isPlayingBgm) {
+    startMothersWaltz();
+    bgmBtn.textContent = "🎶 BGM ON (엄마의 왈츠)";
+    bgmBtn.style.background = "#27ae60";
+  } else {
+    stopMothersWaltz();
+    bgmBtn.textContent = "🎵 엄마의 왈츠 BGM OFF";
+    bgmBtn.style.background = "#e67e22";
+  }
+});
+
+/* =====================================================
+   오브젝트 배치 및 게임 로직
+===================================================== */
+function createObject(type,x,y,interactive=true){
+  const el=document.createElement("div");
+  el.className=`obj ${type}`;
+  el.dataset.type=type;
+  el.dataset.id=++objectId;
+  el.style.left=x+"%";
+  el.style.top=y+"%";
+
+  if(type==="tree"){
+    el.innerHTML=`<div class="trunk"></div><div class="crown"></div><div class="shine"></div>`;
+  } else if(type==="rock"){
+    el.innerHTML=`<div class="rockBody"></div>`;
+  } else if(type==="water"){
+    el.innerHTML=``;
+  } else if(type==="flower"){
+    el.innerHTML=`<div class="flowerStem"></div><div class="petal p1"></div><div class="petal p2"></div><div class="petal p3"></div><div class="petal p4"></div><div class="flowerCenter"></div>`;
+  } else if(type==="house"){
+    el.innerHTML=`<div class="chimney"></div><div class="roof"></div><div class="roofShade"></div><div class="houseBody"><div class="door"><div class="knob"></div></div></div>`;
+  } else if(type==="bench"){
+    el.innerHTML=`<div class="benchBack"></div><div class="benchSeat"></div><div class="benchSupport"></div><div class="benchLeg1"></div><div class="benchLeg2"></div>`;
+  } else if(type==="fence"){
+    el.innerHTML=`<div class="fencePost fp1"></div><div class="fencePost fp2"></div><div class="fencePost fp3"></div><div class="fenceRail1"></div><div class="fenceRail2"></div>`;
+  } else if(type==="fountain"){
+    el.innerHTML=`<div class="fBase"></div><div class="fPillar"></div><div class="fBowl"></div><div class="fTop"></div><div class="fJet"></div>`;
+  } else if(type==="bee"){
+    el.innerHTML=`<div class="beeBody"></div><div class="beeStripe"></div>`;
+  } else if(type==="butterfly"){
+    el.innerHTML=`<div class="bWing bw1"></div><div class="bWing bw2"></div><div class="bBody"></div>`;
+  }
+
+  if(interactive){
+    addDrag(el);
+  }
+  return el;
+}
+
+function renderExample(){
+  const garden=document.getElementById("exampleGarden");
+  garden.querySelectorAll(".obj").forEach(x=>x.remove());
+
+  const stage=stages[currentStage];
+  stage.objects.forEach(o=>{
+    const el=createObject(o[0],o[1],o[2],false);
+    garden.appendChild(el);
+  });
+}
+
+function renderMyGarden(){
+  const garden=document.getElementById("myGarden");
+  garden.querySelectorAll(".obj").forEach(x=>x.remove());
+  updateSimilarity();
+}
+
+function addObjectAt(type,x,y){
+  if(type==="delete") return;
+  const garden=document.getElementById("myGarden");
+  const el=createObject(type,x,y,true);
+  garden.appendChild(el);
+  updateSimilarity();
+}
+
+function addDrag(el){
+  let dragging=false;
+  let offsetX=0, offsetY=0;
+
+  el.addEventListener("pointerdown",e=>{
+    e.preventDefault();
+    e.stopPropagation();
+
+    if(selectedTool==="delete"){
+      el.remove();
+      updateSimilarity();
+      return;
+    }
+
+    dragging=true;
+    el.classList.add("dragging");
+    el.setPointerCapture(e.pointerId);
+
+    const rect=el.getBoundingClientRect();
+    offsetX=e.clientX-(rect.left+rect.width/2);
+    offsetY=e.clientY-(rect.top+rect.height/2);
+  });
+
+  el.addEventListener("pointermove",e=>{
+    if(!dragging) return;
+
+    const garden=document.getElementById("myGarden");
+    const rect=garden.getBoundingClientRect();
+
+    let x=((e.clientX-offsetX-rect.left)/rect.width)*100;
+    let y=((e.clientY-offsetY-rect.top)/rect.height)*100;
+
+    x=Math.max(2,Math.min(98,x));
+    y=Math.max(12,Math.min(94,y));
+
+    el.style.left=x+"%";
+    el.style.top=y+"%";
+  });
+
+  el.addEventListener("pointerup",e=>{
+    if(!dragging) return;
+    dragging=false;
+    el.classList.remove("dragging");
+    updateSimilarity();
+  });
+}
+
+document.getElementById("myGarden").addEventListener("pointerdown",e=>{
+  if(e.target.closest(".obj") || e.target.closest(".toolbar")) return;
+  if(selectedTool==="delete") return;
+
+  const garden=e.currentTarget;
+  const rect=garden.getBoundingClientRect();
+
+  let x=((e.clientX-rect.left)/rect.width)*100;
+  let y=((e.clientY-rect.top)/rect.height)*100;
+
+  x=Math.max(2,Math.min(98,x));
+  y=Math.max(12,Math.min(94,y));
+
+  addObjectAt(selectedTool,x,y);
+});
+
+/* 툴바 선택 이벤트 */
+document.querySelectorAll(".tool[data-tool]").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    selectedTool=btn.dataset.tool;
+    document.querySelectorAll(".tool[data-tool]").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+
+    if(selectedTool==="delete"){
+      showMessage("삭제 모드입니다. 지울 오브젝트를 클릭하세요.");
+    }else{
+      showMessage(`${btn.textContent.trim()} 선택됨! 내 정원에 배치하세요.`);
+    }
+  });
+});
+
+/* 유사도 측정 */
+function updateSimilarity(){
+  const garden=document.getElementById("myGarden");
+  const mine=[...garden.querySelectorAll(".obj")];
+  const target=stages[currentStage].objects;
+
+  if(mine.length===0){
+    setSimilarity(0);
+    return;
+  }
+
+  const targetByType={}, mineByType={};
+  target.forEach(o=>{
+    if(!targetByType[o[0]]) targetByType[o[0]]=[];
+    targetByType[o[0]].push({x:o[1],y:o[2]});
+  });
+
+  mine.forEach(el=>{
+    const type=el.dataset.type;
+    if(!mineByType[type]) mineByType[type]=[];
+    mineByType[type].push({x:parseFloat(el.style.left), y:parseFloat(el.style.top)});
+  });
+
+  const allTypes=["tree","rock","water","flower","house","bench","fence","fountain","bee","butterfly"];
+  let totalWeight=0, earned=0;
+
+  allTypes.forEach(type=>{
+    const targets=targetByType[type] || [];
+    const mines=mineByType[type] || [];
+    const maxCount=Math.max(targets.length, mines.length);
+    if(maxCount===0) return;
+
+    const countRatio = Math.min(targets.length, mines.length) / maxCount;
+    let positionScore = 0;
+
+    if(targets.length && mines.length){
+      const used = new Set();
+      mines.forEach(m=>{
+        let best = -Infinity, bestIndex = -1;
+        targets.forEach((t,i)=>{
+          if(used.has(i)) return;
+          const dist=Math.sqrt(Math.pow(m.x-t.x, 2) + Math.pow(m.y-t.y, 2));
+          const s=Math.max(0, 1-dist/12);
+          if(s>best){ best=s; bestIndex=i; }
+        });
+        if(bestIndex>=0){ used.add(bestIndex); positionScore+=best; }
+      });
+      positionScore /= maxCount;
+    }
+
+    totalWeight += 1;
+    earned += (countRatio*0.45 + positionScore*0.55);
+  });
+
+  let result = totalWeight > 0 ? (earned / totalWeight) * 100 : 0;
+  if(mine.length < Math.max(3, Math.floor(target.length * 0.4))){
+    result = Math.min(result, 55);
+  }
+
+  result = Math.round(result);
+  setSimilarity(result);
+}
+
+function setSimilarity(value){
+  document.getElementById("similarity").textContent = `유사도 ${value}%`;
+  const next=document.getElementById("nextBtn");
+
+  if(value >= 70){
+    success=true;
+    next.disabled=false;
+    next.classList.add("ready");
+    showMessage("🎉 성공! 다음 단계 버튼을 클릭하세요.");
+  }else{
+    success=false;
+    next.disabled=true;
+    next.classList.remove("ready");
+  }
+}
+
+document.getElementById("checkBtn").addEventListener("click",()=>{
+  updateSimilarity();
+  const val=parseInt(document.getElementById("similarity").textContent.replace(/[^0-9]/g,"")) || 0;
+  if(val>=70){
+    showMessage("🎉 완벽합니다! 상단의 다음 단계 버튼을 눌러 이동해보세요.");
+  }else{
+    showMessage(`조금 더 비슷하게 배치해보세요. (현재 ${val}%)`);
+  }
+});
+
+document.getElementById("resetBtn").addEventListener("click",()=>{
+  renderMyGarden();
+  showMessage("정원이 초기화되었습니다.");
+});
+
+document.getElementById("nextBtn").addEventListener("click",()=>{
+  if(!success) return;
+  currentStage = (currentStage + 1) % stages.length;
+  document.getElementById("stageText").textContent = stages[currentStage].name;
+
+  renderExample();
+  renderMyGarden();
+
+  success=false;
+  const next=document.getElementById("nextBtn");
+  next.disabled=true;
+  next.classList.remove("ready");
+
+  showMessage(`${stages[currentStage].name} 시작!`);
+});
+
+let messageTimer;
+function showMessage(text){
+  const msg=document.getElementById("message");
+  msg.textContent=text;
+  msg.style.opacity="1";
+  clearTimeout(messageTimer);
+  messageTimer=setTimeout(()=>{ msg.style.opacity=".8"; },2500);
+}
+
+function startGame(){
+  currentStage = 0;
+  document.getElementById("stageText").textContent = "1단계";
+  renderExample();
+  renderMyGarden();
+}
+
+startGame();
+</script>
+
+</body>
+</html>
