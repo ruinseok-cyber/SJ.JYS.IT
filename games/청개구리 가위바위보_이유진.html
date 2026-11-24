@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>청개구리 반대로 가위바위보! (Frog Reverse RPS)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        frog: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            400: '#4ade80',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534',
+                            900: '#14532d',
+                        }
+                    },
+                    keyframes: {
+                        bounceSmall: {
+                            '0%, 100%': { transform: 'translateY(-4%) scale(1)' },
+                            '50%': { transform: 'translateY(0) scale(1.02)' },
+                        },
+                        pop: {
+                            '0%': { transform: 'scale(0.8)', opacity: '0' },
+                            '100%': { transform: 'scale(1)', opacity: '1' }
+                        },
+                        shake: {
+                            '0%, 100%': { transform: 'translateX(0)' },
+                            '20%, 60%': { transform: 'translateX(-10px) rotate(-2deg)' },
+                            '40%, 80%': { transform: 'translateX(10px) rotate(2deg)' }
+                        },
+                        frogCelebrate: {
+                            '0%, 100%': { transform: 'translateY(0) scale(1)' },
+                            '25%': { transform: 'translateY(-15px) scale(1.1) rotate(-5deg)' },
+                            '75%': { transform: 'translateY(-15px) scale(1.1) rotate(5deg)' }
+                        },
+                        frogCrying: {
+                            '0%, 100%': { transform: 'translateY(0) scale(1)' },
+                            '50%': { transform: 'translateY(5px) scale(0.95)' }
+                        }
+                    },
+                    animation: {
+                        'frog-bounce': 'bounceSmall 2s ease-in-out infinite',
+                        'frog-celebrate': 'frogCelebrate 0.6s ease-in-out infinite',
+                        'frog-cry': 'frogCrying 1s ease-in-out infinite',
+                        'pop-in': 'pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+                        'shake': 'shake 0.4s ease-in-out'
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            transition: background 0.5s ease;
+        }
+        .font-jua {
+            font-family: 'Jua', sans-serif;
+        }
+        /* Glassmorphism custom styling */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.90);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            transition: border-color 0.5s ease;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4ade80;
+            border-radius: 9999px;
+        }
+    </style>
+</head>
+<body id="game-body" class="bg-gradient-to-br from-emerald-900 via-teal-800 to-green-950 min-h-screen text-slate-800 flex flex-col justify-between overflow-x-hidden p-2 sm:p-4">
+
+    <!-- Top Header Navigation -->
+    <header class="max-w-3xl w-full mx-auto flex justify-between items-center bg-emerald-950/60 backdrop-blur-md p-3 sm:p-4 rounded-2xl border border-emerald-500/30 text-white shadow-lg mb-2">
+        <div class="flex items-center space-x-2">
+            <span id="header-frog-icon" class="text-3xl animate-bounce">🐸</span>
+            <h1 class="text-xl sm:text-2xl font-jua text-emerald-300 tracking-wide">청개구리 반대로 가위바위보</h1>
+        </div>
+        <div class="flex items-center space-x-2">
+            <button id="btn-open-rank" onclick="audio.playClick(); openLeaderboardModal();" class="bg-amber-500 hover:bg-amber-400 active:scale-95 transition-all text-slate-900 font-bold px-3 py-1.5 rounded-xl text-xs sm:text-sm flex items-center shadow-md font-jua">
+                🏆 순위표
+            </button>
+            <button id="btn-open-rules" class="bg-emerald-600 hover:bg-emerald-500 active:scale-95 transition-all text-white font-bold px-3 py-1.5 rounded-xl text-xs sm:text-sm flex items-center shadow-md">
+                📜 규칙
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-3xl w-full mx-auto flex-1 flex flex-col justify-center items-center my-2">
+
+        <!-- LOBBY SCREEN -->
+        <div id="screen-lobby" class="w-full glass-panel rounded-3xl p-5 sm:p-8 shadow-2xl text-center border-2 border-emerald-400/40 relative overflow-hidden">
+            <div class="absolute -top-10 -right-10 w-32 h-32 bg-emerald-400/20 rounded-full blur-2xl"></div>
+            <div class="absolute -bottom-10 -left-10 w-32 h-32 bg-teal-400/20 rounded-full blur-2xl"></div>
+
+            <!-- Player Nickname Setup Banner -->
+            <div class="bg-emerald-100/80 border border-emerald-300 rounded-2xl p-3 mb-4 flex justify-between items-center max-w-md mx-auto shadow-sm">
+                <div class="flex items-center space-x-2 overflow-hidden">
+                    <span class="text-2xl">👑</span>
+                    <div class="text-left truncate">
+                        <div class="text-[10px] text-emerald-700 font-bold uppercase">Player Profile</div>
+                        <div id="lobby-player-name" class="font-jua text-emerald-900 text-lg sm:text-xl truncate">멋진개구리</div>
+                    </div>
+                </div>
+                <button onclick="audio.playClick(); openNicknameModal();" class="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-jua text-xs px-3 py-1.5 rounded-xl transition-all shadow">
+                    ✏️ 이름 변경
+                </button>
+            </div>
+
+            <!-- Lobby Frog Avatar Display -->
+            <div class="mb-3 inline-block relative">
+                <div id="lobby-frog-container" class="w-28 h-28 sm:w-36 sm:h-36 mx-auto animate-frog-bounce">
+                    <!-- SVG Dynamically Rendered -->
+                </div>
+            </div>
+
+            <h2 class="text-2xl sm:text-3xl font-jua text-emerald-900 mb-2">"이기면 '졌다' 하고, 지면 '이겼다' 해라 개굴!"</h2>
+            <p class="text-slate-600 text-sm sm:text-base mb-6 font-medium">
+                일반 가위바위보 결과의 <strong class="text-rose-600 underline decoration-wavy">정반대</strong>로 판단하여 버튼을 누르세요!
+            </p>
+
+            <!-- Mode Selection Buttons -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+                <button onclick="audio.playClick(); startGame('normal');" class="group relative bg-gradient-to-b from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white p-4 rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all active:scale-95 border-b-4 border-green-800 text-left">
+                    <div class="text-xl sm:text-2xl font-jua mb-1">❤️ 일반 모드</div>
+                    <div class="text-xs text-emerald-100 font-normal">목숨 3개 / 제한시간 내 정답 클릭</div>
+                </button>
+                <button onclick="audio.playClick(); startGame('speed');" class="group relative bg-gradient-to-b from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white p-4 rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all active:scale-95 border-b-4 border-amber-800 text-left">
+                    <div class="text-xl sm:text-2xl font-jua mb-1">⚡ 스피드 타임어택</div>
+                    <div class="text-xs text-amber-100 font-normal">30초 동안 최대한 많은 점수 획득!</div>
+                </button>
+                <button onclick="audio.playClick(); startGame('practice');" class="group relative bg-gradient-to-b from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white p-4 rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all active:scale-95 border-b-4 border-blue-800 text-left">
+                    <div class="text-xl sm:text-2xl font-jua mb-1">🎓 연습 모드</div>
+                    <div class="text-xs text-sky-100 font-normal">시간/목숨 제한 없음 & 친절한 해설 제공</div>
+                </button>
+            </div>
+
+            <!-- Dynamic Theme Tip Notice -->
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-2.5 text-xs text-amber-800 flex items-center justify-center space-x-2">
+                <span>✨ <strong>랜덤 시스템:</strong> 게임을 시작할 때마다 새로운 개구리 친구와 특별한 테마가 찾아옵니다!</span>
+            </div>
+
+            <!-- Highscore Badge -->
+            <div class="mt-4 pt-3 border-t border-slate-200/80 flex justify-around text-xs sm:text-sm font-bold text-slate-700">
+                <div>내 최고 점수 (일반): <span id="lobby-high-normal" class="text-emerald-600 font-jua text-base">0</span>점</div>
+                <div>내 최고 점수 (스피드): <span id="lobby-high-speed" class="text-amber-600 font-jua text-base">0</span>점</div>
+            </div>
+        </div>
+
+        <!-- GAMEPLAY SCREEN -->
+        <div id="screen-game" class="w-full glass-panel rounded-3xl p-4 sm:p-6 shadow-2xl hidden flex-col border-2 border-emerald-400/40 relative">
+            
+            <!-- Top Status Bar -->
+            <div class="flex justify-between items-center mb-3 bg-white/70 p-3 rounded-2xl shadow-inner border border-emerald-100">
+                <!-- Mode Badge & Hearts & Player Tag -->
+                <div class="flex items-center space-x-2">
+                    <span id="game-mode-tag" class="px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-600 text-white uppercase">NORMAL</span>
+                    <span id="theme-tag" class="text-xs font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md">청개구리</span>
+                    <div id="hearts-container" class="flex space-x-1 text-lg">
+                        <span>❤️</span><span>❤️</span><span>❤️</span>
+                    </div>
+                </div>
+
+                <!-- Score & Timer -->
+                <div class="flex items-center space-x-4 font-jua">
+                    <div class="text-slate-600 text-sm">점수: <span id="game-score" class="text-2xl text-emerald-600 font-bold">0</span></div>
+                    <div id="timer-box" class="bg-amber-100 text-amber-800 px-3 py-0.5 rounded-xl text-lg font-bold border border-amber-300">
+                        ⏱️ <span id="game-timer">3.0</span>s
+                    </div>
+                </div>
+            </div>
+
+            <!-- Frog Character Stage -->
+            <div id="frog-stage-bg" class="relative bg-gradient-to-b from-emerald-100/80 to-teal-50/90 rounded-2xl p-4 mb-4 text-center border border-emerald-200/60 shadow-inner min-h-[230px] flex flex-col justify-center items-center transition-colors duration-500">
+                
+                <!-- Frog Speech Bubble -->
+                <div id="frog-speech" class="absolute -top-3 bg-white px-4 py-1.5 rounded-2xl shadow-md border-2 border-emerald-500 font-jua text-emerald-800 text-base sm:text-lg animate-bounce transition-all z-10 max-w-[90%] truncate">
+                    준비해라 개굴!
+                </div>
+
+                <!-- Frog SVG Dynamic Renderer -->
+                <div id="frog-avatar-container" class="w-32 h-32 sm:w-36 sm:h-36 my-1 transition-transform duration-300">
+                    <!-- Dynamic SVG inserted here -->
+                </div>
+
+                <!-- Hands Display Stage -->
+                <div class="flex items-center justify-around w-full max-w-sm mt-1 bg-white/80 rounded-xl p-2 border border-slate-200 shadow-sm">
+                    <div class="text-center">
+                        <div class="text-[11px] text-slate-400 font-bold mb-0.5">개구리 손</div>
+                        <div id="frog-hand-display" class="text-4xl sm:text-5xl transform transition-all duration-300 scale-90">❓</div>
+                    </div>
+                    <div class="text-2xl text-slate-300 font-black">VS</div>
+                    <div class="text-center">
+                        <div class="text-[11px] text-slate-400 font-bold mb-0.5">내 손 선택</div>
+                        <div id="player-hand-display" class="text-4xl sm:text-5xl transform transition-all duration-300 scale-90">❓</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- STEP 1: Hand Selection Controls (Player chooses Rock/Paper/Scissors) -->
+            <div id="section-hand-select" class="mb-3">
+                <div class="text-center text-xs font-bold text-emerald-900 mb-1.5">1단계: 내가 먼저 낼 손을 선택하세요!</div>
+                <div class="grid grid-cols-3 gap-2 sm:gap-3">
+                    <button onclick="selectPlayerHand('scissors')" class="hand-btn bg-white hover:bg-emerald-50 border-2 border-emerald-300 active:scale-95 transition-all p-2 sm:p-3 rounded-2xl shadow flex flex-col items-center">
+                        <span class="text-3xl sm:text-4xl">✌️</span>
+                        <span class="font-jua text-xs sm:text-sm text-slate-700 mt-1">가위</span>
+                    </button>
+                    <button onclick="selectPlayerHand('rock')" class="hand-btn bg-white hover:bg-emerald-50 border-2 border-emerald-300 active:scale-95 transition-all p-2 sm:p-3 rounded-2xl shadow flex flex-col items-center">
+                        <span class="text-3xl sm:text-4xl">✊</span>
+                        <span class="font-jua text-xs sm:text-sm text-slate-700 mt-1">바위</span>
+                    </button>
+                    <button onclick="selectPlayerHand('paper')" class="hand-btn bg-white hover:bg-emerald-50 border-2 border-emerald-300 active:scale-95 transition-all p-2 sm:p-3 rounded-2xl shadow flex flex-col items-center">
+                        <span class="text-3xl sm:text-4xl">✋</span>
+                        <span class="font-jua text-xs sm:text-sm text-slate-700 mt-1">보</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- STEP 2: Text Action Buttons (Reversed logic response) -->
+            <div id="section-action-shout" class="space-y-2 opacity-40 pointer-events-none transition-all duration-300">
+                <div class="text-center text-xs font-bold text-rose-700">2단계: 정반대의 결과를 즉시 선택하세요!</div>
+                
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="submitAnswer('내가 이겼다')" class="shout-btn bg-gradient-to-b from-rose-500 to-red-600 hover:from-rose-400 hover:to-red-500 text-white font-jua text-sm sm:text-lg p-3 rounded-2xl shadow-md border-b-4 border-red-800 active:scale-95 transition-all">
+                        "내가 이겼다!"
+                    </button>
+                    <button onclick="submitAnswer('비겼다')" class="shout-btn bg-gradient-to-b from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-white font-jua text-sm sm:text-lg p-3 rounded-2xl shadow-md border-b-4 border-yellow-800 active:scale-95 transition-all">
+                        "비겼다!"
+                    </button>
+                    <button onclick="submitAnswer('내가 졌다')" class="shout-btn bg-gradient-to-b from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500 text-white font-jua text-sm sm:text-lg p-3 rounded-2xl shadow-md border-b-4 border-indigo-800 active:scale-95 transition-all">
+                        "내가 졌다!"
+                    </button>
+                </div>
+            </div>
+
+            <!-- Explanation Banner (Practice Mode) -->
+            <div id="practice-explanation" class="mt-3 p-3 bg-sky-50 border border-sky-200 rounded-xl text-xs sm:text-sm text-sky-900 hidden font-medium">
+                💡 <span id="explanation-text">연습모드 설명이 여기에 표시됩니다.</span>
+            </div>
+
+            <!-- Quit Button -->
+            <div class="mt-3 text-right">
+                <button onclick="audio.playClick(); quitGame();" class="text-xs text-slate-400 hover:text-slate-600 underline font-bold">
+                    게임 포기하고 나가기
+                </button>
+            </div>
+        </div>
+
+        <!-- GAME OVER MODAL / RESULT SCREEN -->
+        <div id="screen-result" class="w-full glass-panel rounded-3xl p-6 sm:p-8 shadow-2xl hidden text-center border-2 border-emerald-400/40 relative">
+            <div id="result-emoji" class="text-5xl mb-2">🏆</div>
+            <h2 class="text-3xl font-jua text-emerald-900 mb-1">게임 종료!</h2>
+            <p id="result-subtitle" class="text-slate-600 text-sm mb-4">수고하셨습니다 개굴!</p>
+
+            <div class="bg-emerald-50/80 p-4 rounded-2xl border border-emerald-200 mb-4 space-y-2">
+                <div class="text-xs text-slate-500">플레이어: <span id="result-player-name" class="font-bold text-emerald-800">멋진개구리</span></div>
+                <div class="text-sm text-slate-600">최종 점수: <span id="final-score" class="text-3xl font-jua text-emerald-600">0</span>점</div>
+                <div class="text-sm text-slate-600">청개구리 칭호: <span id="final-rank" class="text-lg font-jua text-amber-600">삐딱한 올챙이</span></div>
+                <div id="new-record-tag" class="hidden inline-block bg-rose-500 text-white text-xs font-bold px-3 py-1 rounded-full animate-bounce">
+                    🎉 최고 기록 경신! 순위표 등록 완료!
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-2 justify-center">
+                <button onclick="audio.playClick(); restartCurrentGame();" class="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white font-jua text-lg px-6 py-2.5 rounded-2xl shadow-lg border-b-4 border-green-800 active:scale-95 transition-all">
+                    🔄 다시 하기
+                </button>
+                <button onclick="audio.playClick(); openLeaderboardModal();" class="bg-amber-500 hover:bg-amber-400 text-slate-900 font-jua text-lg px-6 py-2.5 rounded-2xl shadow border-b-4 border-amber-700 active:scale-95 transition-all">
+                    🏆 순위 보기
+                </button>
+                <button onclick="audio.playClick(); showLobby();" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-jua text-lg px-6 py-2.5 rounded-2xl shadow border-b-4 border-slate-400 active:scale-95 transition-all">
+                    🏠 로비
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- NICKNAME SETTING MODAL -->
+    <div id="modal-nickname" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex justify-center items-center p-4 hidden">
+        <div class="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border-2 border-emerald-400 animate-pop-in text-center">
+            <div class="text-4xl mb-2">🐸</div>
+            <h3 class="text-2xl font-jua text-emerald-800 mb-2">플레이어 이름 입력</h3>
+            <p class="text-xs text-slate-500 mb-4">순위표에 등록될 개구리 이름을 입력하세요!</p>
+
+            <input type="text" id="input-nickname" maxlength="8" placeholder="이름 (최대 8자)" class="w-full text-center text-lg font-jua border-2 border-emerald-300 rounded-xl p-3 focus:outline-none focus:border-emerald-500 mb-4 bg-emerald-50/50">
+
+            <div class="flex gap-2">
+                <button onclick="audio.playClick(); saveNickname();" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-jua py-2.5 rounded-xl shadow active:scale-95 transition-all">
+                    저장하기
+                </button>
+                <button onclick="audio.playClick(); closeNicknameModal();" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-jua px-4 py-2.5 rounded-xl shadow active:scale-95 transition-all">
+                    취소
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LEADERBOARD / RANKING MODAL -->
+    <div id="modal-rank" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex justify-center items-center p-4 hidden">
+        <div class="bg-white rounded-3xl p-5 sm:p-6 max-w-md w-full shadow-2xl border-2 border-amber-400 animate-pop-in">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="text-2xl font-jua text-amber-800 flex items-center gap-2">
+                    <span>🏆</span> 명예의 전당 (순위표)
+                </h3>
+                <button id="btn-close-rank" onclick="audio.playClick(); document.getElementById('modal-rank').classList.add('hidden');" class="text-slate-400 hover:text-slate-600 text-xl font-bold p-1">✕</button>
+            </div>
+
+            <!-- Tab Buttons for Leaderboard Mode -->
+            <div class="flex border-b border-slate-200 mb-3 font-jua">
+                <button id="tab-rank-normal" onclick="audio.playClick(); switchRankTab('normal');" class="flex-1 py-2 text-center text-emerald-700 border-b-2 border-emerald-600 font-bold text-sm">
+                    ❤️ 일반 모드
+                </button>
+                <button id="tab-rank-speed" onclick="audio.playClick(); switchRankTab('speed');" class="flex-1 py-2 text-center text-slate-400 border-b-2 border-transparent font-bold text-sm">
+                    ⚡ 스피드 30초
+                </button>
+            </div>
+
+            <!-- Leaderboard List -->
+            <div id="rank-list-container" class="space-y-2 max-h-60 overflow-y-auto pr-1">
+                <!-- Dynamic ranking items rendered here -->
+            </div>
+
+            <!-- Share & Reset Actions -->
+            <div class="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center text-xs">
+                <button onclick="audio.playClick(); resetLeaderboard();" class="text-slate-400 hover:text-rose-500 underline">
+                    순위 초기화
+                </button>
+                <button onclick="audio.playClick(); copyRankToClipboard();" class="bg-amber-100 text-amber-800 font-bold px-3 py-1.5 rounded-lg border border-amber-300 active:scale-95">
+                    📋 내 기록 복사
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- RULES MODAL -->
+    <div id="modal-rules" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex justify-center items-center p-4 hidden">
+        <div class="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border-2 border-emerald-400 animate-pop-in">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-2xl font-jua text-emerald-800 flex items-center gap-2">
+                    <span>📜</span> 청개구리 게임 규칙
+                </h3>
+                <button id="btn-close-rules" class="text-slate-400 hover:text-slate-600 text-xl font-bold p-1">✕</button>
+            </div>
+            
+            <div class="space-y-3 text-sm text-slate-700">
+                <div class="p-3 bg-rose-50 border-l-4 border-rose-500 rounded-r-xl">
+                    <strong class="text-rose-700 block mb-1">핵심 반대로 규칙:</strong>
+                    가위바위보 결과의 <span class="underline font-bold text-rose-600">정반대 버튼</span>을 클릭해야 정답입니다!
+                </div>
+
+                <div class="space-y-2 text-xs sm:text-sm font-medium">
+                    <div class="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
+                        <span>개구리 ✌️ vs 나 ✊ (실제 승리)</span>
+                        <span class="text-indigo-600 font-bold">➡️ "내가 졌다!" 선택</span>
+                    </div>
+                    <div class="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
+                        <span>개구리 ✊ vs 나 ✌️ (실제 패배)</span>
+                        <span class="text-rose-600 font-bold">➡️ "내가 이겼다!" 선택</span>
+                    </div>
+                    <div class="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
+                        <span>개구리 ✊ vs 나 ✊ (비김)</span>
+                        <span class="text-amber-600 font-bold">➡️ "비겼다!" 선택</span>
+                    </div>
+                </div>
+
+                <div class="text-xs text-slate-500 mt-2">
+                    💡 빠른 판단력과 손발이 반대로 움직이는 순발력이 필요합니다 개굴!
+                </div>
+            </div>
+
+            <button id="btn-confirm-rules" class="w-full mt-5 bg-emerald-600 hover:bg-emerald-500 text-white font-jua py-2.5 rounded-xl shadow">
+                확인했습니다!
+            </button>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast-message" class="fixed bottom-5 left-1/2 -translate-x-1/2 bg-slate-800/90 text-white text-xs sm:text-sm font-jua px-4 py-2 rounded-2xl shadow-xl transition-all opacity-0 pointer-events-none z-50">
+        알림 메시지
+    </div>
+
+    <!-- Footer -->
+    <footer class="text-center text-xs text-emerald-200/60 py-2">
+        청개구리 반대로 가위바위보 게임 &copy; Interactive Web Game
+    </footer>
+
+    <!-- GAME LOGIC JAVASCRIPT -->
+    <script>
+        // ==========================================
+        // 1. GAME DATA & RANDOM THEMES
+        // ==========================================
+        const HANDS = {
+            rock: { emoji: '✊', name: '바위' },
+            scissors: { emoji: '✌️', name: '가위' },
+            paper: { emoji: '✋', name: '보' }
+        };
+
+        const RANKS = [
+            { minScore: 0, title: "삐딱한 올챙이 🐸" },
+            { minScore: 50, title: "동네 청개구리 🍃" },
+            { minScore: 120, title: "청개구리 수재 🎓" },
+            { minScore: 200, title: "꺾이지 않는 청개구리 🔥" },
+            { minScore: 300, title: "청개구리 왕국 국왕 👑" }
+        ];
+
+        // 5 Dynamic Frog Themes generated randomly each new game
+        const FROG_THEMES = [
+            {
+                id: 'classic',
+                name: '청개구리 개굴이',
+                bodyColor: '#4ade80', strokeColor: '#16a34a', darkColor: '#15803d',
+                accessory: 'leaf',
+                bgGradient: 'from-emerald-900 via-teal-800 to-green-950',
+                stageBg: 'from-emerald-100/80 to-teal-50/90',
+                dialogues: {
+                    start: '난 평범한 청개구리다 개굴!',
+                    win: '앗... 날 속이다니 똑똑하군!',
+                    lose: '크하하! 속았지 개굴?!',
+                    taunt: '반대로 반대로 해봐 개굴!'
+                }
+            },
+            {
+                id: 'king',
+                name: '황금 왕관 개구리',
+                bodyColor: '#fbbf24', strokeColor: '#d97706', darkColor: '#b45309',
+                accessory: 'crown',
+                bgGradient: 'from-amber-950 via-yellow-900 to-amber-900',
+                stageBg: 'from-amber-100/90 to-yellow-50/90',
+                dialogues: {
+                    start: '짐은 황금 왕국의 개구리왕이다!',
+                    win: '왕의 지혜를 파악했구나 개굴...',
+                    lose: '짐을 이기려면 멀었다 개굴!',
+                    taunt: '반대로 외치는 것은 왕의 법칙이다!'
+                }
+            },
+            {
+                id: 'poison',
+                name: '화려한 독개구리',
+                bodyColor: '#f43f5e', strokeColor: '#be123c', darkColor: '#9f1239',
+                accessory: 'spots',
+                bgGradient: 'from-rose-950 via-purple-950 to-pink-950',
+                stageBg: 'from-rose-100/80 to-pink-50/90',
+                dialogues: {
+                    start: '치명적인 정반대 매력 독개구리 등장!',
+                    win: '독한 판단력이군요 개굴!',
+                    lose: '흐흐흐, 뇌가 마비된 거냐 개굴?',
+                    taunt: '독개구리의 룰은 항상 반대다!'
+                }
+            },
+            {
+                id: 'pink',
+                name: '러블리 핑크 개구리',
+                bodyColor: '#f472b6', strokeColor: '#db2777', darkColor: '#be185d',
+                accessory: 'ribbon',
+                bgGradient: 'from-pink-950 via-rose-900 to-fuchsia-950',
+                stageBg: 'from-pink-100/80 to-fuchsia-50/90',
+                dialogues: {
+                    start: '사랑스러운 핑구 개구리라구~',
+                    win: '꺅! 나보다 똑똑하잖아~',
+                    lose: '우와~ 실수했네! 틀렸지롱!',
+                    taunt: '분홍빛 가위바위보, 반대로 클릭!'
+                }
+            },
+            {
+                id: 'ninja',
+                name: '그림자 닌자 개구리',
+                bodyColor: '#38bdf8', strokeColor: '#0284c7', darkColor: '#0369a1',
+                accessory: 'headband',
+                bgGradient: 'from-slate-950 via-sky-950 to-indigo-950',
+                stageBg: 'from-sky-100/80 to-indigo-50/90',
+                dialogues: {
+                    start: '신속의 반대로 술법! 닌자 개구리!',
+                    win: '크윽... 내 수법을 읽다니!',
+                    lose: '동체시력이 부족하구나 개굴!',
+                    taunt: '눈보다 빠른 손가락이 필요하다!'
+                }
+            }
+        ];
+
+        const DEFAULT_LEADERBOARD = {
+            normal: [
+                { name: "개굴왕사손", score: 250, date: "2026-10-20" },
+                { name: "빠른개구리", score: 180, date: "2026-10-21" },
+                { name: "반대로장인", score: 110, date: "2026-10-22" }
+            ],
+            speed: [
+                { name: "빛의손가락", score: 320, date: "2026-10-20" },
+                { name: "스피드왕", score: 240, date: "2026-10-21" }
+            ]
+        };
+
+        let playerName = localStorage.getItem('frog_player_name') || '멋진개구리';
+        let currentTheme = FROG_THEMES[0];
+
+        let gameState = {
+            mode: 'normal',
+            score: 0,
+            lives: 3,
+            timeRemaining: 3.0,
+            speedModeTimer: 30,
+            currentFrogHand: null,
+            currentPlayerHand: null,
+            correctAnswer: null,
+            isWaitingForAction: false,
+            timerId: null,
+            speedIntervalId: null,
+            warningAudioPlaying: false
+        };
+
+        let leaderboards = JSON.parse(localStorage.getItem('frog_leaderboard')) || DEFAULT_LEADERBOARD;
+        let highScores = {
+            normal: parseInt(localStorage.getItem('frog_high_normal') || '0'),
+            speed: parseInt(localStorage.getItem('frog_high_speed') || '0')
+        };
+
+        let currentRankTab = 'normal';
+
+        // ==========================================
+        // 2. ENHANCED WEB AUDIO SYNTHESIZER
+        // ==========================================
+        class SoundFX {
+            constructor() {
+                this.ctx = null;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) this.ctx = new AudioCtx();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            // Standard UI Click Sound
+            playClick() {
+                this.init();
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1200, this.ctx.currentTime + 0.05);
+
+                gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.05);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.05);
+            }
+
+            // Frog Croak Sound
+            playCroak() {
+                this.init();
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(140, this.ctx.currentTime);
+                osc.frequency.linearRampToValueAtTime(70, this.ctx.currentTime + 0.2);
+
+                gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.2);
+            }
+
+            // Hand Throwing Pop Sound
+            playHandPop() {
+                this.init();
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(250, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(800, this.ctx.currentTime + 0.08);
+
+                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.08);
+            }
+
+            // Correct Answer Success Fanfare
+            playSuccess() {
+                this.init();
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+                notes.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.07);
+
+                    gain.gain.setValueAtTime(0.2, now + idx * 0.07);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.07 + 0.18);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + idx * 0.07);
+                    osc.stop(now + idx * 0.07 + 0.18);
+                });
+            }
+
+            // Fail / Wrong Answer Sound
+            playFail() {
+                this.init();
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(220, now);
+                osc.frequency.linearRampToValueAtTime(110, now + 0.35);
+
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.35);
+            }
+
+            // Time Urgency Warning Beep
+            playWarningBeep() {
+                this.init();
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, this.ctx.currentTime);
+
+                gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.06);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.06);
+            }
+
+            // Game Over Tragic Sound
+            playGameOver() {
+                this.init();
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const notes = [400, 350, 300, 220];
+                notes.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.12);
+
+                    gain.gain.setValueAtTime(0.2, now + idx * 0.12);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.12 + 0.25);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + idx * 0.12);
+                    osc.stop(now + idx * 0.12 + 0.25);
+                });
+            }
+        }
+
+        const audio = new SoundFX();
+
+        // ==========================================
+        // 3. SVG FROG AVATAR & EXPRESSION SYSTEM
+        // ==========================================
+        // Supported Expressions: 'idle', 'thinking', 'happy', 'surprised', 'crying', 'smug', 'rock', 'scissors', 'paper'
+        function renderFrog(mood = 'idle', targetContainerId = 'frog-avatar-container') {
+            const container = document.getElementById(targetContainerId);
+            if (!container) return;
+
+            const { bodyColor, strokeColor, darkColor, accessory } = currentTheme;
+
+            let eyes = '';
+            let mouth = '';
+            let extra = '';
+
+            // Render Theme Accessory
+            if (accessory === 'crown') {
+                extra += `<polygon points="85,32 100,10 115,32 125,20 120,42 80,42 75,20" fill="#f59e0b" stroke="#b45309" stroke-width="2"/>`;
+            } else if (accessory === 'ribbon') {
+                extra += `<path d="M 60 35 C 40 20, 40 45, 60 38 C 80 45, 80 20, 60 35 Z" fill="#ec4899"/>
+                          <circle cx="60" cy="36" r="5" fill="#f472b6"/>`;
+            } else if (accessory === 'headband') {
+                extra += `<rect x="30" y="48" width="140" height="12" rx="4" fill="#0f172a"/>
+                          <circle cx="100" cy="54" r="4" fill="#e11d48"/>`;
+            } else if (accessory === 'spots') {
+                extra += `<circle cx="75" cy="110" r="6" fill="#be123c" opacity="0.6"/>
+                          <circle cx="125" cy="115" r="8" fill="#be123c" opacity="0.6"/>
+                          <circle cx="100" cy="140" r="5" fill="#be123c" opacity="0.6"/>`;
+            } else { // leaf
+                extra += `<path d="M 100 35 Q 115 15 130 30 Q 110 38 100 35 Z" fill="#22c55e" stroke="#15803d" stroke-width="2"/>`;
+            }
+
+            // Expressive Expressions Mapping
+            switch (mood) {
+                case 'happy': // When frog wins (player loses or mistakes)
+                    container.className = "w-32 h-32 sm:w-36 sm:h-36 my-1 animate-frog-celebrate";
+                    eyes = `
+                        <path d="M 46 60 Q 60 45 74 60" fill="none" stroke="#0f172a" stroke-width="6" stroke-linecap="round"/>
+                        <path d="M 126 60 Q 140 45 154 60" fill="none" stroke="#0f172a" stroke-width="6" stroke-linecap="round"/>
+                    `;
+                    mouth = `<path d="M 65 118 Q 100 160 135 118 Z" fill="#f43f5e" stroke="${darkColor}" stroke-width="3"/>`;
+                    extra += `<text x="155" y="45" font-size="22" class="animate-bounce">🎶</text>`;
+                    break;
+
+                case 'surprised': // Player guessed right (frog shocked)
+                    container.className = "w-32 h-32 sm:w-36 sm:h-36 my-1 animate-pop-in";
+                    eyes = `
+                        <circle cx="60" cy="60" r="18" fill="#ffffff"/>
+                        <circle cx="140" cy="60" r="18" fill="#ffffff"/>
+                        <circle cx="60" cy="60" r="6" fill="#0f172a"/>
+                        <circle cx="140" cy="60" r="6" fill="#0f172a"/>
+                    `;
+                    mouth = `<ellipse cx="100" cy="130" rx="16" ry="22" fill="#0f172a"/>`;
+                    extra += `<text x="150" y="45" font-size="24">⚡</text>`;
+                    break;
+
+                case 'crying': // Game Over or severe loss
+                    container.className = "w-32 h-32 sm:w-36 sm:h-36 my-1 animate-frog-cry";
+                    eyes = `
+                        <path d="M 48 55 L 72 65 M 48 65 L 72 55" stroke="#0f172a" stroke-width="5" stroke-linecap="round"/>
+                        <path d="M 128 55 L 152 65 M 128 65 L 152 55" stroke="#0f172a" stroke-width="5" stroke-linecap="round"/>
+                    `;
+                    mouth = `<path d="M 70 140 Q 100 120 130 140" fill="none" stroke="#0f172a" stroke-width="6" stroke-linecap="round"/>`;
+                    extra += `
+                        <path d="M 52 75 Q 45 90 52 100 Q 58 90 52 75 Z" fill="#38bdf8"/>
+                        <path d="M 148 75 Q 141 90 148 100 Q 154 90 148 75 Z" fill="#38bdf8"/>
+                    `;
+                    break;
+
+                case 'thinking': // Player is deciding reversed shout
+                    container.className = "w-32 h-32 sm:w-36 sm:h-36 my-1";
+                    eyes = `
+                        <circle cx="60" cy="60" r="14" fill="#ffffff"/>
+                        <circle cx="140" cy="60" r="14" fill="#ffffff"/>
+                        <circle cx="66" cy="54" r="7" fill="#0f172a"/>
+                        <circle cx="146" cy="54" r="7" fill="#0f172a"/>
+                    `;
+                    mouth = `<path d="M 75 130 Q 95 120 125 135" fill="none" stroke="${darkColor}" stroke-width="6" stroke-linecap="round"/>`;
+                    extra += `<text x="150" y="45" font-size="22" class="animate-pulse">❓</text>`;
+                    break;
+
+                case 'smug': // Taunting state
+                    container.className = "w-32 h-32 sm:w-36 sm:h-36 my-1";
+                    eyes = `
+                        <path d="M 45 58 Q 60 50 75 62" fill="none" stroke="#0f172a" stroke-width="5" stroke-linecap="round"/>
+                        <path d="M 125 62 Q 140 50 155 58" fill="none" stroke="#0f172a" stroke-width="5" stroke-linecap="round"/>
+                    `;
+                    mouth = `<path d="M 70 125 Q 110 145 130 120" fill="none" stroke="${darkColor}" stroke-width="6" stroke-linecap="round"/>`;
+                    break;
+
+                case 'idle':
+                default:
+                    container.className = "w-32 h-32 sm:w-36 sm:h-36 my-1 animate-frog-bounce";
+                    eyes = `
+                        <circle cx="60" cy="60" r="14" fill="#ffffff"/>
+                        <circle cx="140" cy="60" r="14" fill="#ffffff"/>
+                        <circle cx="63" cy="58" r="7" fill="#0f172a"/>
+                        <circle cx="143" cy="58" r="7" fill="#0f172a"/>
+                    `;
+                    mouth = `<path d="M 70 125 Q 100 148 130 125" fill="none" stroke="${darkColor}" stroke-width="6" stroke-linecap="round"/>`;
+                    break;
+            }
+
+            container.innerHTML = `
+                <svg viewBox="0 0 200 200" class="w-full h-full drop-shadow-xl">
+                    <!-- Body Base -->
+                    <circle cx="100" cy="115" r="65" fill="${bodyColor}" stroke="${strokeColor}" stroke-width="6"/>
+                    <!-- Eyes Socket -->
+                    <circle cx="60" cy="60" r="28" fill="${bodyColor}" stroke="${strokeColor}" stroke-width="5"/>
+                    <circle cx="140" cy="60" r="28" fill="${bodyColor}" stroke="${strokeColor}" stroke-width="5"/>
+                    <!-- Dynamic Eyes -->
+                    ${eyes}
+                    <!-- Cheeks -->
+                    <circle cx="50" cy="115" r="10" fill="#f43f5e" opacity="0.35"/>
+                    <circle cx="150" cy="115" r="10" fill="#f43f5e" opacity="0.35"/>
+                    <!-- Dynamic Mouth -->
+                    ${mouth}
+                    <!-- Accessories -->
+                    ${extra}
+                </svg>
+            `;
+        }
+
+        // Apply theme color settings to page body & game elements
+        function applyTheme(theme) {
+            currentTheme = theme;
+            
+            // Body gradient
+            const body = document.getElementById('game-body');
+            body.className = `bg-gradient-to-br ${theme.bgGradient} min-h-screen text-slate-800 flex flex-col justify-between overflow-x-hidden p-2 sm:p-4`;
+
+            // Stage background
+            const stage = document.getElementById('frog-stage-bg');
+            if (stage) {
+                stage.className = `relative bg-gradient-to-b ${theme.stageBg} rounded-2xl p-4 mb-4 text-center border border-emerald-200/60 shadow-inner min-h-[230px] flex flex-col justify-center items-center transition-colors duration-500`;
+            }
+
+            // Tags & Labels
+            const themeTag = document.getElementById('theme-tag');
+            if (themeTag) themeTag.textContent = theme.name;
+
+            // Render frog avatars in lobby & game
+            renderFrog('idle', 'lobby-frog-container');
+            renderFrog('idle', 'frog-avatar-container');
+        }
+
+        function pickRandomTheme() {
+            const randomIndex = Math.floor(Math.random() * FROG_THEMES.length);
+            applyTheme(FROG_THEMES[randomIndex]);
+        }
+
+        // ==========================================
+        // 4. CORE REVERSED RPS GAME LOGIC
+        // ==========================================
+        function getReverseCorrectAnswer(playerHand, frogHand) {
+            if (playerHand === frogHand) {
+                return '비겼다';
+            }
+            const playerWinsStandard = (
+                (playerHand === 'rock' && frogHand === 'scissors') ||
+                (playerHand === 'scissors' && frogHand === 'paper') ||
+                (playerHand === 'paper' && frogHand === 'rock')
+            );
+
+            // In Reversed Frog RPS:
+            // Standard win -> Must shout "내가 졌다!"
+            // Standard loss -> Must shout "내가 이겼다!"
+            return playerWinsStandard ? '내가 졌다' : '내가 이겼다';
+        }
+
+        function getExplanation(playerHand, frogHand, correct) {
+            const pName = HANDS[playerHand].name;
+            const fName = HANDS[frogHand].name;
+            
+            if (playerHand === frogHand) {
+                return `개구리(${fName}) vs 나(${pName})로 비겼으므로 반대로 해도 "${correct}!"입니다.`;
+            }
+
+            const standardWin = (playerHand === 'rock' && frogHand === 'scissors') ||
+                                (playerHand === 'scissors' && frogHand === 'paper') ||
+                                (playerHand === 'paper' && frogHand === 'rock');
+
+            if (standardWin) {
+                return `실제로는 내 [${pName}]이 개구리 [${fName}]을 이기지만, 청개구리 룰로 반대로 "${correct}!"라고 해야 합니다!`;
+            } else {
+                return `실제로는 내 [${pName}]이 개구리 [${fName}]에게 지지만, 청개구리 룰로 반대로 "${correct}!"라고 해야 합니다!`;
+            }
+        }
+
+        // ==========================================
+        // 5. SCREEN & FLOW CONTROL
+        // ==========================================
+        function showLobby() {
+            clearInterval(gameState.timerId);
+            clearInterval(gameState.speedIntervalId);
+            
+            document.getElementById('screen-lobby').classList.remove('hidden');
+            document.getElementById('screen-game').classList.add('hidden');
+            document.getElementById('screen-game').classList.remove('flex');
+            document.getElementById('screen-result').classList.add('hidden');
+
+            document.getElementById('lobby-player-name').textContent = playerName;
+            document.getElementById('lobby-high-normal').textContent = highScores.normal;
+            document.getElementById('lobby-high-speed').textContent = highScores.speed;
+
+            renderFrog('idle', 'lobby-frog-container');
+        }
+
+        function startGame(mode) {
+            audio.init();
+            
+            // Random Theme Variation on Every New Game Start!
+            pickRandomTheme();
+
+            gameState.mode = mode;
+            gameState.score = 0;
+            gameState.lives = 3;
+            gameState.speedModeTimer = 30;
+
+            document.getElementById('screen-lobby').classList.add('hidden');
+            document.getElementById('screen-game').classList.remove('hidden');
+            document.getElementById('screen-game').classList.add('flex');
+            document.getElementById('screen-result').classList.add('hidden');
+
+            const modeTag = document.getElementById('game-mode-tag');
+            const timerBox = document.getElementById('timer-box');
+            const heartsBox = document.getElementById('hearts-container');
+            const expBox = document.getElementById('practice-explanation');
+
+            expBox.classList.add('hidden');
+
+            if (mode === 'normal') {
+                modeTag.textContent = '일반 모드';
+                modeTag.className = 'px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-600 text-white';
+                timerBox.classList.remove('hidden');
+                heartsBox.classList.remove('hidden');
+            } else if (mode === 'speed') {
+                modeTag.textContent = '스피드 30초';
+                modeTag.className = 'px-2.5 py-1 rounded-lg text-xs font-black bg-amber-500 text-white';
+                timerBox.classList.remove('hidden');
+                heartsBox.classList.add('hidden');
+                
+                // Start 30s Countdown
+                gameState.speedIntervalId = setInterval(() => {
+                    gameState.speedModeTimer--;
+                    if (gameState.speedModeTimer <= 5 && gameState.speedModeTimer > 0) {
+                        audio.playWarningBeep();
+                    }
+
+                    if (gameState.speedModeTimer <= 0) {
+                        endGame();
+                    } else {
+                        document.getElementById('game-timer').textContent = gameState.speedModeTimer;
+                    }
+                }, 1000);
+            } else { // practice
+                modeTag.textContent = '연습 모드';
+                modeTag.className = 'px-2.5 py-1 rounded-lg text-xs font-black bg-sky-500 text-white';
+                timerBox.classList.add('hidden');
+                heartsBox.classList.add('hidden');
+                expBox.classList.remove('hidden');
+            }
+
+            updateHeartsUI();
+            document.getElementById('game-score').textContent = '0';
+            document.getElementById('frog-speech').textContent = currentTheme.dialogues.start;
+
+            nextRound();
+        }
+
+        function restartCurrentGame() {
+            startGame(gameState.mode);
+        }
+
+        function nextRound() {
+            clearInterval(gameState.timerId);
+            gameState.isWaitingForAction = false;
+            gameState.currentPlayerHand = null;
+
+            // Reset Display Elements
+            document.getElementById('player-hand-display').textContent = '❓';
+            document.getElementById('frog-hand-display').textContent = '❓';
+            document.getElementById('frog-speech').textContent = currentTheme.dialogues.taunt;
+
+            renderFrog('idle', 'frog-avatar-container');
+
+            // Enable Step 1, Disable Step 2
+            const handSelect = document.getElementById('section-hand-select');
+            const shoutSelect = document.getElementById('section-action-shout');
+
+            handSelect.classList.remove('opacity-40', 'pointer-events-none');
+            shoutSelect.classList.add('opacity-40', 'pointer-events-none');
+
+            // Frog Picks Random Hand
+            const keys = Object.keys(HANDS);
+            gameState.currentFrogHand = keys[Math.floor(Math.random() * keys.length)];
+
+            if (gameState.mode === 'normal') {
+                gameState.timeRemaining = Math.max(1.4, 3.2 - Math.floor(gameState.score / 50) * 0.25);
+                document.getElementById('game-timer').textContent = gameState.timeRemaining.toFixed(1);
+            } else if (gameState.mode === 'speed') {
+                document.getElementById('game-timer').textContent = gameState.speedModeTimer;
+            }
+        }
+
+        function selectPlayerHand(handKey) {
+            if (gameState.isWaitingForAction) return;
+
+            audio.playHandPop();
+            gameState.currentPlayerHand = handKey;
+            
+            document.getElementById('player-hand-display').textContent = HANDS[handKey].emoji;
+            document.getElementById('frog-hand-display').textContent = HANDS[gameState.currentFrogHand].emoji;
+
+            gameState.correctAnswer = getReverseCorrectAnswer(gameState.currentPlayerHand, gameState.currentFrogHand);
+
+            const handSelect = document.getElementById('section-hand-select');
+            const shoutSelect = document.getElementById('section-action-shout');
+
+            handSelect.classList.add('opacity-40', 'pointer-events-none');
+            shoutSelect.classList.remove('opacity-40', 'pointer-events-none');
+
+            document.getElementById('frog-speech').textContent = '정반대 결과를 눌러라 개굴!';
+            renderFrog('thinking', 'frog-avatar-container');
+
+            gameState.isWaitingForAction = true;
+
+            if (gameState.mode === 'normal') {
+                const startTime = Date.now();
+                const totalLimit = gameState.timeRemaining * 1000;
+
+                gameState.timerId = setInterval(() => {
+                    const elapsed = Date.now() - startTime;
+                    const remaining = Math.max(0, (totalLimit - elapsed) / 1000);
+                    document.getElementById('game-timer').textContent = remaining.toFixed(1);
+
+                    if (remaining <= 1.0 && remaining > 0.9) {
+                        audio.playWarningBeep();
+                    }
+
+                    if (remaining <= 0) {
+                        clearInterval(gameState.timerId);
+                        handleTimeout();
+                    }
+                }, 50);
+            }
+        }
+
+        function submitAnswer(playerShout) {
+            if (!gameState.isWaitingForAction) return;
+
+            clearInterval(gameState.timerId);
+            gameState.isWaitingForAction = false;
+
+            const isCorrect = (playerShout === gameState.correctAnswer);
+
+            if (isCorrect) {
+                audio.playSuccess();
+                renderFrog('surprised', 'frog-avatar-container');
+                document.getElementById('frog-speech').textContent = currentTheme.dialogues.win;
+                gameState.score += 10;
+                document.getElementById('game-score').textContent = gameState.score;
+
+                if (gameState.mode === 'practice') {
+                    const exp = getExplanation(gameState.currentPlayerHand, gameState.currentFrogHand, gameState.correctAnswer);
+                    document.getElementById('explanation-text').textContent = `⭕ 정답! ${exp}`;
+                }
+
+                setTimeout(nextRound, gameState.mode === 'practice' ? 1800 : 750);
+
+            } else {
+                audio.playFail();
+                renderFrog('happy', 'frog-avatar-container');
+                document.getElementById('frog-speech').textContent = `${currentTheme.dialogues.lose} 정답은 [${gameState.correctAnswer}]!`;
+
+                if (gameState.mode === 'practice') {
+                    const exp = getExplanation(gameState.currentPlayerHand, gameState.currentFrogHand, gameState.correctAnswer);
+                    document.getElementById('explanation-text').textContent = `❌ 오답! ${exp}`;
+                }
+
+                if (gameState.mode === 'normal') {
+                    gameState.lives--;
+                    updateHeartsUI();
+                    
+                    const gameBoard = document.getElementById('screen-game');
+                    gameBoard.classList.add('animate-shake');
+                    setTimeout(() => gameBoard.classList.remove('animate-shake'), 400);
+
+                    if (gameState.lives <= 0) {
+                        setTimeout(endGame, 1200);
+                    } else {
+                        setTimeout(nextRound, 1200);
+                    }
+                } else if (gameState.mode === 'speed') {
+                    gameState.score = Math.max(0, gameState.score - 5);
+                    document.getElementById('game-score').textContent = gameState.score;
+                    setTimeout(nextRound, 850);
+                } else {
+                    setTimeout(nextRound, 1800);
+                }
+            }
+        }
+
+        function handleTimeout() {
+            if (!gameState.isWaitingForAction) return;
+            gameState.isWaitingForAction = false;
+
+            audio.playFail();
+            renderFrog('happy', 'frog-avatar-container');
+            document.getElementById('frog-speech').textContent = `시간 초과! 정답은 [${gameState.correctAnswer}]!`;
+
+            if (gameState.mode === 'normal') {
+                gameState.lives--;
+                updateHeartsUI();
+                if (gameState.lives <= 0) {
+                    setTimeout(endGame, 1200);
+                } else {
+                    setTimeout(nextRound, 1200);
+                }
+            }
+        }
+
+        function updateHeartsUI() {
+            const container = document.getElementById('hearts-container');
+            let html = '';
+            for (let i = 0; i < 3; i++) {
+                if (i < gameState.lives) {
+                    html += '<span class="animate-pulse">❤️</span>';
+                } else {
+                    html += '<span class="opacity-30">🖤</span>';
+                }
+            }
+            container.innerHTML = html;
+        }
+
+        function quitGame() {
+            clearInterval(gameState.timerId);
+            clearInterval(gameState.speedIntervalId);
+            showLobby();
+        }
+
+        function endGame() {
+            clearInterval(gameState.timerId);
+            clearInterval(gameState.speedIntervalId);
+
+            audio.playGameOver();
+
+            document.getElementById('screen-game').classList.add('hidden');
+            document.getElementById('screen-game').classList.remove('flex');
+            document.getElementById('screen-result').classList.remove('hidden');
+
+            document.getElementById('result-player-name').textContent = playerName;
+            document.getElementById('final-score').textContent = gameState.score;
+
+            let currentRank = RANKS[0].title;
+            for (let r of RANKS) {
+                if (gameState.score >= r.minScore) {
+                    currentRank = r.title;
+                }
+            }
+            document.getElementById('final-rank').textContent = currentRank;
+
+            // Check Highscore & Update Leaderboard
+            let isNewRecord = false;
+
+            if (gameState.mode === 'normal' || gameState.mode === 'speed') {
+                const targetMode = gameState.mode;
+                if (gameState.score > highScores[targetMode]) {
+                    highScores[targetMode] = gameState.score;
+                    localStorage.setItem(`frog_high_${targetMode}`, gameState.score);
+                    isNewRecord = true;
+                }
+
+                if (gameState.score > 0) {
+                    const today = new Date().toISOString().split('T')[0];
+                    leaderboards[targetMode].push({
+                        name: playerName,
+                        score: gameState.score,
+                        date: today
+                    });
+                    leaderboards[targetMode].sort((a, b) => b.score - a.score);
+                    leaderboards[targetMode] = leaderboards[targetMode].slice(0, 10);
+                    localStorage.setItem('frog_leaderboard', JSON.stringify(leaderboards));
+                }
+            }
+
+            const recordTag = document.getElementById('new-record-tag');
+            if (isNewRecord) {
+                recordTag.classList.remove('hidden');
+            } else {
+                recordTag.classList.add('hidden');
+            }
+        }
+
+        // ==========================================
+        // 6. NICKNAME & LEADERBOARD SYSTEM
+        // ==========================================
+        function openNicknameModal() {
+            document.getElementById('input-nickname').value = playerName;
+            document.getElementById('modal-nickname').classList.remove('hidden');
+        }
+
+        function closeNicknameModal() {
+            document.getElementById('modal-nickname').classList.add('hidden');
+        }
+
+        function saveNickname() {
+            const input = document.getElementById('input-nickname').value.trim();
+            if (input.length > 0) {
+                playerName = input;
+                localStorage.setItem('frog_player_name', playerName);
+                document.getElementById('lobby-player-name').textContent = playerName;
+                showToast(`닉네임이 '${playerName}'(으)로 설정되었습니다!`);
+                closeNicknameModal();
+            } else {
+                showToast("이름을 입력해주세요!");
+            }
+        }
+
+        function openLeaderboardModal() {
+            renderLeaderboard('normal');
+            document.getElementById('modal-rank').classList.remove('hidden');
+        }
+
+        function switchRankTab(mode) {
+            currentRankTab = mode;
+            const tabNormal = document.getElementById('tab-rank-normal');
+            const tabSpeed = document.getElementById('tab-rank-speed');
+
+            if (mode === 'normal') {
+                tabNormal.className = "flex-1 py-2 text-center text-emerald-700 border-b-2 border-emerald-600 font-bold text-sm";
+                tabSpeed.className = "flex-1 py-2 text-center text-slate-400 border-b-2 border-transparent font-bold text-sm";
+            } else {
+                tabSpeed.className = "flex-1 py-2 text-center text-amber-600 border-b-2 border-amber-500 font-bold text-sm";
+                tabNormal.className = "flex-1 py-2 text-center text-slate-400 border-b-2 border-transparent font-bold text-sm";
+            }
+
+            renderLeaderboard(mode);
+        }
+
+        function renderLeaderboard(mode) {
+            const container = document.getElementById('rank-list-container');
+            const list = leaderboards[mode] || [];
+
+            if (list.length === 0) {
+                container.innerHTML = `<div class="text-center text-slate-400 py-6 font-jua">아직 등록된 기록이 없습니다 개굴!</div>`;
+                return;
+            }
+
+            let html = '';
+            list.forEach((item, index) => {
+                let badge = `<span class="w-6 text-center font-bold text-slate-500">${index + 1}</span>`;
+                if (index === 0) badge = `<span class="text-lg">🥇</span>`;
+                else if (index === 1) badge = `<span class="text-lg">🥈</span>`;
+                else if (index === 2) badge = `<span class="text-lg">🥉</span>`;
+
+                const isMe = (item.name === playerName);
+                const bgStyle = isMe ? 'bg-amber-100 border-amber-300 font-bold' : 'bg-slate-50 border-slate-100';
+
+                html += `
+                    <div class="flex items-center justify-between p-2.5 rounded-xl border ${bgStyle} text-xs sm:text-sm">
+                        <div class="flex items-center space-x-2">
+                            ${badge}
+                            <span class="font-jua text-slate-800 ${isMe ? 'text-amber-900' : ''}">${item.name} ${isMe ? '(나)' : ''}</span>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <span class="text-slate-400 text-[10px] hidden sm:inline">${item.date || ''}</span>
+                            <span class="font-jua text-emerald-700 text-base">${item.score}점</span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function resetLeaderboard() {
+            if (confirm("순위표 데이터를 초기화하시겠습니까?")) {
+                leaderboards = DEFAULT_LEADERBOARD;
+                localStorage.setItem('frog_leaderboard', JSON.stringify(leaderboards));
+                renderLeaderboard(currentRankTab);
+                showToast("순위표가 초기화되었습니다.");
+            }
+        }
+
+        function copyRankToClipboard() {
+            const currentScore = highScores[currentRankTab] || 0;
+            const modeText = currentRankTab === 'normal' ? '일반 모드' : '스피드 모드';
+            const text = `🐸 [청개구리 반대로 가위바위보]\n플레이어: ${playerName}\n${modeText} 최고점수: ${currentScore}점!\n나보다 빠른 반응속도를 가졌다면 도전해봐 개굴!`;
+
+            const dummy = document.createElement("textarea");
+            document.body.appendChild(dummy);
+            dummy.value = text;
+            dummy.select();
+            document.execCommand("copy");
+            document.body.removeChild(dummy);
+
+            showToast("📋 내 기록이 클립보드에 복사되었습니다!");
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast-message');
+            toast.textContent = msg;
+            toast.classList.remove('opacity-0', 'pointer-events-none');
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'pointer-events-none');
+            }, 2200);
+        }
+
+        // ==========================================
+        // 7. EVENT BINDINGS & INIT
+        // ==========================================
+        document.getElementById('btn-open-rules').addEventListener('click', () => {
+            audio.playClick();
+            document.getElementById('modal-rules').classList.remove('hidden');
+        });
+
+        document.getElementById('btn-close-rules').addEventListener('click', () => {
+            audio.playClick();
+            document.getElementById('modal-rules').classList.add('hidden');
+        });
+
+        document.getElementById('btn-confirm-rules').addEventListener('click', () => {
+            audio.playClick();
+            document.getElementById('modal-rules').classList.add('hidden');
+        });
+
+        window.addEventListener('DOMContentLoaded', () => {
+            pickRandomTheme();
+            showLobby();
+        });
+    </script>
+</body>
+</html>

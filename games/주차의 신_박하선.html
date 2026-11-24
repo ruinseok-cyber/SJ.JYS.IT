@@ -1,0 +1,3545 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>주차의 신</title>
+
+<style>
+*{
+    box-sizing:border-box;
+}
+
+html,body{
+    margin:0;
+    width:100%;
+    height:100%;
+    background:#111;
+    overflow:hidden;
+    font-family:Arial,"Malgun Gothic",sans-serif;
+}
+
+body{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+}
+
+#game{
+    position:relative;
+    width:1100px;
+    height:680px;
+    background:#292929;
+    overflow:hidden;
+    border:2px solid #444;
+}
+
+canvas{
+    position:absolute;
+    left:0;
+    top:0;
+    width:1100px;
+    height:680px;
+}
+
+#topUI{
+    position:absolute;
+    top:15px;
+    left:20px;
+    right:20px;
+    height:35px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    color:white;
+    font-size:17px;
+    font-weight:bold;
+    z-index:10;
+    pointer-events:none;
+}
+
+#leftUI,
+#rightUI{
+    display:flex;
+    gap:18px;
+    align-items:center;
+}
+
+#life{
+    letter-spacing:3px;
+}
+
+#musicButton{
+    position:absolute;
+    right:20px;
+    top:58px;
+    padding:7px 12px;
+    background:#171717;
+    color:#ddd;
+    border:1px solid #555;
+    border-radius:5px;
+    cursor:pointer;
+    z-index:15;
+}
+
+#controls{
+    position:absolute;
+    left:20px;
+    bottom:15px;
+    color:#aaa;
+    font-size:13px;
+    z-index:10;
+    pointer-events:none;
+}
+
+#collisionText,
+#scorePopup{
+    position:absolute;
+    left:50%;
+    transform:translateX(-50%);
+    opacity:0;
+    pointer-events:none;
+    z-index:20;
+    font-weight:bold;
+}
+
+#collisionText{
+    top:51%;
+    color:#ff5555;
+    font-size:25px;
+}
+
+#scorePopup{
+    top:43%;
+    color:#fff;
+    font-size:28px;
+}
+
+#startScreen,
+#endScreen{
+    position:absolute;
+    inset:0;
+    background:rgba(10,10,10,.97);
+    z-index:50;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+}
+
+#endScreen{
+    display:none;
+}
+
+#startScreen h1{
+    margin:0;
+    color:#fff;
+    font-size:64px;
+    letter-spacing:-4px;
+}
+
+.subtitle{
+    margin-top:8px;
+    color:#888;
+}
+
+.selectTitle{
+    margin-top:23px;
+    margin-bottom:9px;
+    color:#aaa;
+    font-size:14px;
+}
+
+.carList,
+.colorList{
+    display:flex;
+    justify-content:center;
+    gap:8px;
+    flex-wrap:wrap;
+}
+
+.selectBtn{
+    min-width:80px;
+    padding:9px 14px;
+    background:#222;
+    color:#ccc;
+    border:1px solid #555;
+    border-radius:6px;
+    cursor:pointer;
+}
+
+.selectBtn.selected{
+    background:#444;
+    color:#fff;
+    border-color:#fff;
+}
+
+.colorBtn{
+    width:35px;
+    height:28px;
+    border-radius:5px;
+    border:2px solid #555;
+    cursor:pointer;
+}
+
+.colorBtn.selected{
+    border-color:#fff;
+}
+
+#startButton{
+    margin-top:28px;
+    padding:13px 48px;
+    border:0;
+    border-radius:6px;
+    background:#eee;
+    color:#111;
+    font-size:17px;
+    font-weight:bold;
+    cursor:pointer;
+}
+
+#stageBanner{
+    position:absolute;
+    inset:0;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:40;
+    pointer-events:none;
+}
+
+#stageBannerBox{
+    min-width:230px;
+    padding:20px 50px;
+    background:#fff;
+    color:#111;
+    border:3px solid #111;
+    border-radius:5px;
+    box-shadow:0 8px 30px rgba(0,0,0,.5);
+    text-align:center;
+}
+
+#stageBannerText{
+    font-size:42px;
+    font-weight:900;
+    letter-spacing:2px;
+}
+
+#endScreen h2{
+    margin:0 0 14px;
+    font-size:52px;
+    color:white;
+}
+
+#resultMessage{
+    font-size:25px;
+    font-weight:bold;
+    margin-bottom:10px;
+    color:white;
+}
+
+#resultScore{
+    font-size:35px;
+    margin-bottom:10px;
+    color:white;
+}
+
+#resultInfo{
+    color:#999;
+    margin-bottom:20px;
+}
+
+#sexyText{
+    display:none;
+    color:#ff6b91;
+    font-size:18px;
+    font-weight:bold;
+    margin-bottom:20px;
+}
+
+.endButtons{
+    display:flex;
+    gap:10px;
+}
+
+.endButtons button{
+    padding:12px 18px;
+    background:#222;
+    color:#fff;
+    border:1px solid #555;
+    border-radius:6px;
+    cursor:pointer;
+}
+</style>
+</head>
+
+<body>
+
+<div id="game">
+
+<canvas id="canvas" width="1100" height="680"></canvas>
+
+<div id="topUI">
+    <div id="leftUI">
+        <span id="stageUI">STAGE 1</span>
+        <span id="timeUI">TIME 30</span>
+    </div>
+
+    <div id="rightUI">
+        <span id="scoreUI">SCORE 0</span>
+        <span id="life">♥♥♥</span>
+    </div>
+</div>
+
+<button id="musicButton">♪ BGM ON</button>
+
+<div id="controls">
+    W / ↑ 전진　 S / ↓ 후진　 A / ← 좌회전　 D / → 우회전
+</div>
+
+<div id="collisionText"></div>
+<div id="scorePopup"></div>
+
+
+<!-- 시작 화면 -->
+
+<div id="startScreen">
+
+    <h1>주차의 신</h1>
+
+    <div class="subtitle">
+        10개의 주차 공간을 정복하세요
+    </div>
+
+    <div class="selectTitle">차량 선택</div>
+
+    <div class="carList">
+
+        <button class="selectBtn selected" data-car="sedan">
+            승용차
+        </button>
+
+        <button class="selectBtn" data-car="compact">
+            소형차
+        </button>
+
+        <button class="selectBtn" data-car="bus">
+            버스
+        </button>
+
+        <button class="selectBtn" data-car="truck">
+            트럭
+        </button>
+
+    </div>
+
+    <div class="selectTitle">차량 색상</div>
+
+    <div class="colorList">
+
+        <button class="colorBtn selected"
+            data-color="#e53935"
+            style="background:#e53935"></button>
+
+        <button class="colorBtn"
+            data-color="#2979ff"
+            style="background:#2979ff"></button>
+
+        <button class="colorBtn"
+            data-color="#fdd835"
+            style="background:#fdd835"></button>
+
+        <button class="colorBtn"
+            data-color="#43a047"
+            style="background:#43a047"></button>
+
+        <button class="colorBtn"
+            data-color="#8e44ad"
+            style="background:#8e44ad"></button>
+
+        <button class="colorBtn"
+            data-color="#eeeeee"
+            style="background:#eeeeee"></button>
+
+        <button class="colorBtn"
+            data-color="#555555"
+            style="background:#555555"></button>
+
+        <button class="colorBtn"
+            data-color="#fb8c00"
+            style="background:#fb8c00"></button>
+
+        <button class="colorBtn"
+            data-color="#111111"
+            style="background:#111111"></button>
+
+    </div>
+
+    <button id="startButton">게임 시작</button>
+
+</div>
+
+
+<!-- 스테이지 표시 -->
+
+<div id="stageBanner">
+    <div id="stageBannerBox">
+        <div id="stageBannerText">STAGE 1</div>
+    </div>
+</div>
+
+
+<!-- 종료 화면 -->
+
+<div id="endScreen">
+
+    <h2 id="endTitle">GAME OVER</h2>
+
+    <div id="resultMessage"></div>
+
+    <div id="resultScore"></div>
+
+    <div id="resultInfo"></div>
+
+    <div id="sexyText">
+        섹시해
+    </div>
+
+    <div class="endButtons">
+
+        <button id="retryButton">
+            같은 차량으로 다시 도전
+        </button>
+
+        <button id="changeCarButton">
+            차량 다시 선택
+        </button>
+
+    </div>
+
+</div>
+
+</div>
+
+
+<script>
+
+/* =====================================================
+   캔버스
+===================================================== */
+
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+const W = 1100;
+const H = 680;
+
+
+/* =====================================================
+   게임 상태
+===================================================== */
+
+let stage = 1;
+let totalScore = 0;
+let lives = 3;
+let timeLeft = 30;
+
+let gameRunning = false;
+let stageChanging = false;
+
+let selectedCar = "sedan";
+let selectedColor = "#e53935";
+
+let parking = null;
+
+let parkedCars = [];
+let cones = [];
+let pedestrians = [];
+
+let stageCollisions = 0;
+let pedestrianHits = 0;
+
+let invulnerableUntil = 0;
+
+let keys = {};
+
+
+/* =====================================================
+   차량 정보
+===================================================== */
+
+const carTypes = {
+
+    sedan:{
+        w:46,
+        h:88,
+        maxSpeed:3.6,
+        acceleration:.075,
+        turn:.023
+    },
+
+    compact:{
+        w:40,
+        h:76,
+        maxSpeed:3.9,
+        acceleration:.085,
+        turn:.025
+    },
+
+    bus:{
+        w:60,
+        h:135,
+        maxSpeed:2.5,
+        acceleration:.055,
+        turn:.017
+    },
+
+    truck:{
+        w:57,
+        h:115,
+        maxSpeed:2.8,
+        acceleration:.06,
+        turn:.019
+    }
+
+};
+
+
+/* =====================================================
+   플레이어
+===================================================== */
+
+const player = {
+
+    x:550,
+    y:570,
+
+    w:46,
+    h:88,
+
+    angle:0,
+    speed:0,
+
+    maxSpeed:3.6,
+    acceleration:.075,
+    turn:.023,
+
+    color:"#e53935"
+
+};
+
+
+function applySelectedCar(){
+
+    const type = carTypes[selectedCar];
+
+    player.w = type.w;
+    player.h = type.h;
+
+    player.maxSpeed = type.maxSpeed;
+    player.acceleration = type.acceleration;
+    player.turn = type.turn;
+
+    player.color = selectedColor;
+
+}
+
+
+/* =====================================================
+   유틸
+===================================================== */
+
+function randomInt(min,max){
+
+    return Math.floor(
+        Math.random() * (max-min+1)
+    ) + min;
+
+}
+
+
+function normalizeAngle(angle){
+
+    while(angle > Math.PI){
+        angle -= Math.PI*2;
+    }
+
+    while(angle < -Math.PI){
+        angle += Math.PI*2;
+    }
+
+    return angle;
+}
+
+
+function angleDifference(a,b){
+
+    let d = Math.abs(
+        normalizeAngle(a-b)
+    );
+
+    if(d > Math.PI){
+        d = Math.PI*2-d;
+    }
+
+    /*
+       자동차는 앞뒤가 뒤집혀도
+       같은 방향으로 인정
+    */
+
+    if(d > Math.PI/2){
+        d = Math.PI-d;
+    }
+
+    return d;
+}
+
+
+/* =====================================================
+   난이도
+===================================================== */
+
+function getDifficulty(){
+
+    return {
+
+        parked:Math.min(
+            3 + Math.floor(stage*.9),
+            11
+        ),
+
+        cones:Math.min(
+            4 + Math.floor(stage*1.2),
+            16
+        ),
+
+        people:stage < 2
+            ? 0
+            : Math.min(
+                Math.floor((stage+1)/2),
+                6
+            )
+
+    };
+
+}
+
+
+/* =====================================================
+   주차 공간 생성
+===================================================== */
+
+function createParking(){
+
+    /*
+       세로 / 가로 랜덤
+    */
+
+    const orientation =
+        Math.random() < .5
+        ? "vertical"
+        : "horizontal";
+
+
+    const shrink =
+        Math.min(
+            (stage-1)*2.5,
+            22
+        );
+
+
+    /*
+       세로 주차:
+       가로폭 = 자동차 폭 + 여유
+       세로길이 = 자동차 길이 + 여유
+
+       가로 주차:
+       가로길이 = 자동차 길이 + 여유
+       세로폭 = 자동차 폭 + 여유
+    */
+
+    let w;
+    let h;
+
+    if(orientation === "vertical"){
+
+        w = player.w + Math.max(18,42-shrink);
+        h = player.h + Math.max(22,50-shrink);
+
+    }else{
+
+        w = player.h + Math.max(22,50-shrink);
+        h = player.w + Math.max(18,42-shrink);
+
+    }
+
+
+    /*
+       화면 안쪽에서 생성
+    */
+
+    const x = randomInt(
+        Math.ceil(w/2)+100,
+        Math.floor(W-w/2)-100
+    );
+
+    const y = randomInt(
+        Math.ceil(h/2)+100,
+        Math.floor(H-h/2)-100
+    );
+
+
+    parking = {
+
+        x:x,
+        y:y,
+
+        w:w,
+        h:h,
+
+        orientation:orientation
+
+    };
+
+}
+
+
+/* =====================================================
+   장애물 크기
+===================================================== */
+
+function objectRadius(obj){
+
+    if(obj.type === "cone"){
+        return 12;
+    }
+
+    if(obj.type === "person"){
+        return 14;
+    }
+
+    return Math.max(
+        obj.w,
+        obj.h
+    )/2;
+
+}
+
+
+/* =====================================================
+   사각형 겹침
+===================================================== */
+
+function rectanglesOverlap(a,b,padding=0){
+
+    return (
+
+        a.x-a.w/2-padding <
+        b.x+b.w/2 &&
+
+        a.x+a.w/2+padding >
+        b.x-b.w/2 &&
+
+        a.y-a.h/2-padding <
+        b.y+b.h/2 &&
+
+        a.y+a.h/2+padding >
+        b.y-b.h/2
+
+    );
+
+}
+
+
+/* =====================================================
+   장애물이 주차칸에 들어가는지
+===================================================== */
+
+function overlapsParking(obj,padding=0){
+
+    const r = objectRadius(obj);
+
+    return (
+
+        obj.x+r+padding >
+        parking.x-parking.w/2 &&
+
+        obj.x-r-padding <
+        parking.x+parking.w/2 &&
+
+        obj.y+r+padding >
+        parking.y-parking.h/2 &&
+
+        obj.y-r-padding <
+        parking.y+parking.h/2
+
+    );
+
+}
+
+
+/* =====================================================
+   시작 위치 보호
+===================================================== */
+
+function overlapsStartZone(obj){
+
+    const distance = Math.hypot(
+        obj.x-550,
+        obj.y-570
+    );
+
+    return (
+        distance <
+        155 + objectRadius(obj)
+    );
+
+}
+
+
+/* =====================================================
+   다른 물체와 충돌
+===================================================== */
+
+function overlapsList(obj,list,padding){
+
+    for(const other of list){
+
+        const distance = Math.hypot(
+            obj.x-other.x,
+            obj.y-other.y
+        );
+
+        if(
+            distance <
+            objectRadius(obj)+
+            objectRadius(other)+
+            padding
+        ){
+            return true;
+        }
+
+    }
+
+    return false;
+
+}
+
+
+/* =====================================================
+   생성 가능 여부
+===================================================== */
+
+function canSpawn(obj){
+
+    /*
+       주차칸 내부 절대 금지
+    */
+
+    if(overlapsParking(obj,18)){
+        return false;
+    }
+
+
+    /*
+       시작 지역 보호
+    */
+
+    if(overlapsStartZone(obj)){
+        return false;
+    }
+
+
+    /*
+       다른 차량
+    */
+
+    if(
+        overlapsList(
+            obj,
+            parkedCars,
+            22
+        )
+    ){
+        return false;
+    }
+
+
+    /*
+       콘
+    */
+
+    if(
+        overlapsList(
+            obj,
+            cones,
+            16
+        )
+    ){
+        return false;
+    }
+
+
+    /*
+       보행자
+    */
+
+    if(
+        overlapsList(
+            obj,
+            pedestrians,
+            16
+        )
+    ){
+        return false;
+    }
+
+
+    const r =
+        objectRadius(obj)+8;
+
+
+    /*
+       벽과 너무 가까운 곳 금지
+    */
+
+    if(
+        obj.x-r < 80 ||
+        obj.x+r > 1020 ||
+        obj.y-r < 90 ||
+        obj.y+r > 625
+    ){
+        return false;
+    }
+
+
+    return true;
+
+}
+
+
+/* =====================================================
+   주차 차량
+===================================================== */
+
+const parkedColors = [
+
+    "#455a64",
+    "#607d8b",
+    "#795548",
+    "#37474f",
+    "#616161",
+    "#9e9e9e",
+    "#5d4037"
+
+];
+
+
+function createParkedCars(){
+
+    parkedCars = [];
+
+    const amount =
+        getDifficulty().parked;
+
+    let attempts = 0;
+
+
+    while(
+        parkedCars.length < amount &&
+        attempts < 5000
+    ){
+
+        attempts++;
+
+
+        const vertical =
+            Math.random() < .7;
+
+
+        const obj = {
+
+            x:randomInt(100,1000),
+            y:randomInt(100,610),
+
+            w:vertical
+                ? player.w+randomInt(10,20)
+                : randomInt(70,110),
+
+            h:vertical
+                ? randomInt(80,125)
+                : player.w+randomInt(10,20),
+
+            angle:vertical
+                ? 0
+                : Math.PI/2,
+
+            color:
+                parkedColors[
+                    randomInt(
+                        0,
+                        parkedColors.length-1
+                    )
+                ]
+
+        };
+
+
+        if(canSpawn(obj)){
+
+            parkedCars.push(obj);
+
+        }
+
+    }
+
+}
+
+
+/* =====================================================
+   콘 생성
+===================================================== */
+
+function createCones(){
+
+    cones = [];
+
+    const amount =
+        getDifficulty().cones;
+
+    let attempts = 0;
+
+
+    while(
+        cones.length < amount &&
+        attempts < 5000
+    ){
+
+        attempts++;
+
+
+        const obj = {
+
+            x:randomInt(90,1010),
+            y:randomInt(100,610),
+            type:"cone"
+
+        };
+
+
+        if(canSpawn(obj)){
+
+            cones.push(obj);
+
+        }
+
+    }
+
+}
+
+
+/* =====================================================
+   보행자 생성
+===================================================== */
+
+function createPedestrians(){
+
+    pedestrians = [];
+
+    const amount =
+        getDifficulty().people;
+
+    let attempts = 0;
+
+
+    while(
+        pedestrians.length < amount &&
+        attempts < 4000
+    ){
+
+        attempts++;
+
+
+        const obj = {
+
+            x:randomInt(100,1000),
+            y:randomInt(100,600),
+
+            type:"person",
+
+            vx:
+                Math.random()<.5
+                ? .35
+                : -.35
+
+        };
+
+
+        if(canSpawn(obj)){
+
+            pedestrians.push(obj);
+
+        }
+
+    }
+
+}
+
+
+/* =====================================================
+   스테이지 시작
+===================================================== */
+
+function startStage(){
+
+    stageChanging = false;
+
+    stageCollisions = 0;
+    pedestrianHits = 0;
+
+    timeLeft =
+        Math.max(
+            18,
+            31-stage*1.15
+        );
+
+
+    player.x = 550;
+    player.y = 570;
+
+    player.angle = 0;
+    player.speed = 0;
+
+
+    /*
+       주차칸 생성
+    */
+
+    createParking();
+
+
+    /*
+       장애물 생성
+       주차칸 생성 이후 실행
+    */
+
+    createParkedCars();
+    createCones();
+    createPedestrians();
+
+
+    showStageBanner();
+
+    updateUI();
+
+}
+
+
+/* =====================================================
+   스테이지 표시
+===================================================== */
+
+function showStageBanner(){
+
+    const banner =
+        document.getElementById(
+            "stageBanner"
+        );
+
+    const text =
+        document.getElementById(
+            "stageBannerText"
+        );
+
+
+    text.textContent =
+        "STAGE " + stage;
+
+
+    banner.style.display = "flex";
+
+
+    setTimeout(function(){
+
+        banner.style.display = "none";
+
+    },900);
+
+}
+
+
+/* =====================================================
+   플레이어 이동
+===================================================== */
+
+function updatePlayer(){
+
+    if(!gameRunning){
+        return;
+    }
+
+
+    const forward =
+        keys["w"] ||
+        keys["W"] ||
+        keys["ArrowUp"];
+
+
+    const reverse =
+        keys["s"] ||
+        keys["S"] ||
+        keys["ArrowDown"];
+
+
+    if(forward){
+
+        player.speed +=
+            player.acceleration;
+
+    }
+
+
+    if(reverse){
+
+        player.speed -=
+            player.acceleration;
+
+    }
+
+
+    if(!forward && !reverse){
+
+        player.speed *= .965;
+
+    }
+
+
+    player.speed = Math.max(
+        -player.maxSpeed*.55,
+        Math.min(
+            player.maxSpeed,
+            player.speed
+        )
+    );
+
+
+    if(Math.abs(player.speed) > .05){
+
+        const direction =
+            player.speed > 0
+            ? 1
+            : -1;
+
+
+        const left =
+            keys["a"] ||
+            keys["A"] ||
+            keys["ArrowLeft"];
+
+
+        const right =
+            keys["d"] ||
+            keys["D"] ||
+            keys["ArrowRight"];
+
+
+        if(left){
+
+            player.angle -=
+                player.turn *
+                direction *
+                Math.min(
+                    Math.abs(player.speed)/2,
+                    1.3
+                );
+
+        }
+
+
+        if(right){
+
+            player.angle +=
+                player.turn *
+                direction *
+                Math.min(
+                    Math.abs(player.speed)/2,
+                    1.3
+                );
+
+        }
+
+    }
+
+
+    player.x +=
+        Math.sin(player.angle) *
+        player.speed;
+
+
+    player.y -=
+        Math.cos(player.angle) *
+        player.speed;
+
+
+    /*
+       벽
+    */
+
+    const margin = 42;
+
+
+    if(player.x < margin){
+
+        player.x = margin;
+        player.speed *= -.3;
+
+    }
+
+
+    if(player.x > W-margin){
+
+        player.x = W-margin;
+        player.speed *= -.3;
+
+    }
+
+
+    if(player.y < 72){
+
+        player.y = 72;
+        player.speed *= -.3;
+
+    }
+
+
+    if(player.y > H-48){
+
+        player.y = H-48;
+        player.speed *= -.3;
+
+    }
+
+}
+
+
+/* =====================================================
+   보행자 이동
+===================================================== */
+
+function updatePedestrians(){
+
+    for(const p of pedestrians){
+
+        p.x += p.vx;
+
+
+        if(
+            p.x < 80 ||
+            p.x > 1020
+        ){
+
+            p.vx *= -1;
+
+        }
+
+    }
+
+}
+
+
+/* =====================================================
+   충돌
+===================================================== */
+
+function playerRadius(){
+
+    return Math.max(
+        player.w,
+        player.h
+    )*.43;
+
+}
+
+
+function showCollision(text){
+
+    const el =
+        document.getElementById(
+            "collisionText"
+        );
+
+    el.textContent = text;
+
+    el.style.opacity = 1;
+
+
+    setTimeout(function(){
+
+        el.style.opacity = 0;
+
+    },650);
+
+}
+
+
+function damage(type){
+
+    const now =
+        performance.now();
+
+
+    if(now < invulnerableUntil){
+        return;
+    }
+
+
+    invulnerableUntil =
+        now + 1000;
+
+
+    lives--;
+
+    stageCollisions++;
+
+
+    if(type === "person"){
+
+        pedestrianHits++;
+
+        showCollision(
+            "보행자 충돌!  -20점"
+        );
+
+    }else{
+
+        showCollision(
+            "충돌!  -1 LIFE"
+        );
+
+    }
+
+
+    player.speed *= -.35;
+
+
+    updateUI();
+
+
+    if(lives <= 0){
+
+        endGame(false);
+
+    }
+
+}
+
+
+function checkCollisions(){
+
+    if(!gameRunning){
+        return;
+    }
+
+
+    const r = playerRadius();
+
+
+    for(const car of parkedCars){
+
+        const d = Math.hypot(
+            player.x-car.x,
+            player.y-car.y
+        );
+
+
+        if(
+            d <
+            r+
+            objectRadius(car)*.78
+        ){
+
+            damage("car");
+            return;
+
+        }
+
+    }
+
+
+    for(const cone of cones){
+
+        const d = Math.hypot(
+            player.x-cone.x,
+            player.y-cone.y
+        );
+
+
+        if(d < r+12){
+
+            damage("cone");
+            return;
+
+        }
+
+    }
+
+
+    for(const p of pedestrians){
+
+        const d = Math.hypot(
+            player.x-p.x,
+            player.y-p.y
+        );
+
+
+        if(d < r+13){
+
+            damage("person");
+            return;
+
+        }
+
+    }
+
+}
+
+
+/* =====================================================
+   플레이어 다각형
+===================================================== */
+
+function getPlayerPolygon(){
+
+    const hw = player.w/2;
+    const hh = player.h/2;
+
+    const c = Math.cos(player.angle);
+    const s = Math.sin(player.angle);
+
+
+    const points = [
+
+        {x:-hw,y:-hh},
+        {x: hw,y:-hh},
+        {x: hw,y: hh},
+        {x:-hw,y: hh}
+
+    ];
+
+
+    return points.map(function(p){
+
+        return {
+
+            x:
+                player.x+
+                p.x*c-
+                p.y*s,
+
+            y:
+                player.y+
+                p.x*s+
+                p.y*c
+
+        };
+
+    });
+
+}
+
+
+/* =====================================================
+   점이 사각형 안인지
+===================================================== */
+
+function pointInParking(x,y){
+
+    return (
+
+        x >= parking.x-parking.w/2 &&
+        x <= parking.x+parking.w/2 &&
+        y >= parking.y-parking.h/2 &&
+        y <= parking.y+parking.h/2
+
+    );
+
+}
+
+
+/* =====================================================
+   선분 교차
+===================================================== */
+
+function lineIntersection(a,b,c,d){
+
+    const denominator =
+        (a.x-b.x)*(c.y-d.y) -
+        (a.y-b.y)*(c.x-d.x);
+
+
+    if(Math.abs(denominator) < .00001){
+        return null;
+    }
+
+
+    const t =
+        (
+            (a.x-c.x)*(c.y-d.y) -
+            (a.y-c.y)*(c.x-d.x)
+        ) /
+        denominator;
+
+
+    const u =
+        -(
+            (a.x-b.x)*(a.y-c.y) -
+            (a.y-b.y)*(a.x-c.x)
+        ) /
+        denominator;
+
+
+    if(
+        t >= 0 &&
+        t <= 1 &&
+        u >= 0 &&
+        u <= 1
+    ){
+
+        return {
+
+            x:a.x+t*(b.x-a.x),
+            y:a.y+t*(b.y-a.y)
+
+        };
+
+    }
+
+
+    return null;
+
+}
+
+
+/* =====================================================
+   다각형 클리핑
+===================================================== */
+
+function clipPolygon(poly,inside,intersection){
+
+    const result = [];
+
+    if(poly.length === 0){
+        return result;
+    }
+
+
+    for(
+        let i=0;
+        i<poly.length;
+        i++
+    ){
+
+        const current = poly[i];
+
+        const previous =
+            poly[
+                (i+poly.length-1)%
+                poly.length
+            ];
+
+
+        const currentInside =
+            inside(current);
+
+        const previousInside =
+            inside(previous);
+
+
+        if(currentInside){
+
+            if(!previousInside){
+
+                const hit =
+                    intersection(
+                        previous,
+                        current
+                    );
+
+                if(hit){
+                    result.push(hit);
+                }
+
+            }
+
+            result.push(current);
+
+        }else if(previousInside){
+
+            const hit =
+                intersection(
+                    previous,
+                    current
+                );
+
+            if(hit){
+                result.push(hit);
+            }
+
+        }
+
+    }
+
+
+    return result;
+
+}
+
+
+/* =====================================================
+   주차칸과 자동차 교차 면적
+===================================================== */
+
+function getParkingRatio(){
+
+    if(!parking){
+        return 0;
+    }
+
+
+    let poly =
+        getPlayerPolygon();
+
+
+    /*
+       왼쪽
+    */
+
+    poly = clipPolygon(
+        poly,
+
+        function(p){
+            return p.x >=
+                parking.x-parking.w/2;
+        },
+
+        function(a,b){
+
+            return lineIntersection(
+                a,b,
+                {
+                    x:parking.x-parking.w/2,
+                    y:parking.y-parking.h
+                },
+                {
+                    x:parking.x-parking.w/2,
+                    y:parking.y+parking.h
+                }
+            );
+
+        }
+    );
+
+
+    /*
+       오른쪽
+    */
+
+    poly = clipPolygon(
+        poly,
+
+        function(p){
+            return p.x <=
+                parking.x+parking.w/2;
+        },
+
+        function(a,b){
+
+            return lineIntersection(
+                a,b,
+                {
+                    x:parking.x+parking.w/2,
+                    y:parking.y-parking.h
+                },
+                {
+                    x:parking.x+parking.w/2,
+                    y:parking.y+parking.h
+                }
+            );
+
+        }
+    );
+
+
+    /*
+       위
+    */
+
+    poly = clipPolygon(
+        poly,
+
+        function(p){
+            return p.y >=
+                parking.y-parking.h/2;
+        },
+
+        function(a,b){
+
+            return lineIntersection(
+                a,b,
+                {
+                    x:parking.x-parking.w,
+                    y:parking.y-parking.h/2
+                },
+                {
+                    x:parking.x+parking.w,
+                    y:parking.y-parking.h/2
+                }
+            );
+
+        }
+    );
+
+
+    /*
+       아래
+    */
+
+    poly = clipPolygon(
+        poly,
+
+        function(p){
+            return p.y <=
+                parking.y+parking.h/2;
+        },
+
+        function(a,b){
+
+            return lineIntersection(
+                a,b,
+                {
+                    x:parking.x-parking.w,
+                    y:parking.y+parking.h/2
+                },
+                {
+                    x:parking.x+parking.w,
+                    y:parking.y+parking.h/2
+                }
+            );
+
+        }
+    );
+
+
+    if(poly.length < 3){
+        return 0;
+    }
+
+
+    let area = 0;
+
+
+    for(
+        let i=0;
+        i<poly.length;
+        i++
+    ){
+
+        const a = poly[i];
+
+        const b =
+            poly[
+                (i+1)%poly.length
+            ];
+
+
+        area +=
+            a.x*b.y -
+            b.x*a.y;
+
+    }
+
+
+    area = Math.abs(area)/2;
+
+
+    const carArea =
+        player.w*player.h;
+
+
+    return Math.max(
+        0,
+        Math.min(
+            1,
+            area/carArea
+        )
+    );
+
+}
+
+
+/* =====================================================
+   주차 방향
+===================================================== */
+
+function correctDirection(){
+
+    /*
+       angle 0 = 세로
+
+       angle 90도 = 가로
+    */
+
+    const target =
+        parking.orientation === "vertical"
+        ? 0
+        : Math.PI/2;
+
+
+    /*
+       ±45도까지 허용
+    */
+
+    return (
+        angleDifference(
+            player.angle,
+            target
+        ) <= Math.PI/4
+    );
+
+}
+
+
+/* =====================================================
+   최종 주차 판정
+===================================================== */
+
+function isParked(){
+
+    const ratio =
+        getParkingRatio();
+
+
+    /*
+       핵심:
+       자동차의 70% 이상이
+       주차칸 안에 있어야 함
+    */
+
+    if(ratio < .70){
+        return false;
+    }
+
+
+    /*
+       주차 방향도 맞아야 함
+    */
+
+    if(!correctDirection()){
+        return false;
+    }
+
+
+    return true;
+
+}
+
+
+/* =====================================================
+   점수
+===================================================== */
+
+function calculateStageScore(){
+
+    const ratio =
+        getParkingRatio();
+
+
+    let score = 0;
+
+
+    /*
+       주차 위치 70점
+    */
+
+    score +=
+        Math.min(
+            70,
+            Math.round(
+                ratio*70
+            )
+        );
+
+
+    /*
+       방향 30점
+    */
+
+    if(correctDirection()){
+
+        score += 30;
+
+    }
+
+
+    /*
+       충돌 감점
+    */
+
+    score -=
+        stageCollisions*3;
+
+
+    /*
+       보행자 추가 감점
+    */
+
+    score -=
+        pedestrianHits*20;
+
+
+    return Math.max(
+        0,
+        Math.min(
+            100,
+            Math.round(score)
+        )
+    );
+
+}
+
+
+/* =====================================================
+   스테이지 클리어
+===================================================== */
+
+function clearStage(){
+
+    if(stageChanging){
+        return;
+    }
+
+
+    stageChanging = true;
+
+    player.speed = 0;
+
+
+    const score =
+        calculateStageScore();
+
+
+    totalScore += score;
+
+
+    showScorePopup(
+        "+"+
+        score+
+        "   주차 "+
+        Math.round(
+            getParkingRatio()*100
+        )+
+        "%"
+    );
+
+
+    if(stage >= 10){
+
+        setTimeout(function(){
+
+            endGame(true);
+
+        },1000);
+
+        return;
+
+    }
+
+
+    stage++;
+
+
+    setTimeout(function(){
+
+        startStage();
+
+    },1000);
+
+}
+
+
+/* =====================================================
+   점수 팝업
+===================================================== */
+
+function showScorePopup(text){
+
+    const el =
+        document.getElementById(
+            "scorePopup"
+        );
+
+
+    el.textContent = text;
+
+    el.style.opacity = 1;
+
+
+    setTimeout(function(){
+
+        el.style.opacity = 0;
+
+    },900);
+
+}
+
+
+/* =====================================================
+   결과 문구
+===================================================== */
+
+function getResultMessage(score){
+
+    if(score <= 100){
+        return "운전 다시 배우세요";
+    }
+
+    if(score <= 300){
+        return "그저그렇군요";
+    }
+
+    if(score <= 500){
+        return "꽤 하네";
+    }
+
+    if(score <= 700){
+        return "쫌 치네";
+    }
+
+    if(score <= 900){
+        return "운전의 신";
+    }
+
+    return "주차의 신";
+
+}
+
+
+/* =====================================================
+   게임 종료
+===================================================== */
+
+function endGame(success){
+
+    gameRunning = false;
+    stageChanging = true;
+
+
+    const screen =
+        document.getElementById(
+            "endScreen"
+        );
+
+
+    document.getElementById(
+        "endTitle"
+    ).textContent =
+        success
+        ? "ALL CLEAR!"
+        : "GAME OVER";
+
+
+    document.getElementById(
+        "resultMessage"
+    ).textContent =
+        getResultMessage(
+            totalScore
+        );
+
+
+    document.getElementById(
+        "resultScore"
+    ).textContent =
+        totalScore+
+        " / 1000";
+
+
+    document.getElementById(
+        "resultInfo"
+    ).textContent =
+        success
+        ? "10개의 스테이지를 모두 클리어했습니다."
+        : "STAGE "+
+          stage+
+          "에서 게임이 종료되었습니다.";
+
+
+    document.getElementById(
+        "sexyText"
+    ).style.display =
+        totalScore >= 901
+        ? "block"
+        : "none";
+
+
+    screen.style.display = "flex";
+
+}
+
+
+/* =====================================================
+   시간 종료
+===================================================== */
+
+function timeOver(){
+
+    if(!gameRunning){
+        return;
+    }
+
+    endGame(false);
+
+}
+
+
+/* =====================================================
+   UI
+===================================================== */
+
+function updateUI(){
+
+    document.getElementById(
+        "stageUI"
+    ).textContent =
+        "STAGE "+stage;
+
+
+    document.getElementById(
+        "timeUI"
+    ).textContent =
+        "TIME "+
+        Math.ceil(timeLeft);
+
+
+    document.getElementById(
+        "scoreUI"
+    ).textContent =
+        "SCORE "+
+        totalScore;
+
+
+    document.getElementById(
+        "life"
+    ).textContent =
+        "♥".repeat(
+            Math.max(
+                0,
+                lives
+            )
+        )+
+        "♡".repeat(
+            Math.max(
+                0,
+                3-lives
+            )
+        );
+
+}
+
+
+/* =====================================================
+   배경
+===================================================== */
+
+function drawBackground(){
+
+    ctx.fillStyle = "#292929";
+
+    ctx.fillRect(
+        0,
+        0,
+        W,
+        H
+    );
+
+
+    ctx.fillStyle = "#202020";
+
+    ctx.fillRect(
+        55,
+        75,
+        20,
+        555
+    );
+
+    ctx.fillRect(
+        1025,
+        75,
+        20,
+        555
+    );
+
+
+    ctx.strokeStyle =
+        "rgba(255,255,255,.025)";
+
+    ctx.lineWidth = 1;
+
+
+    for(
+        let x=80;
+        x<1020;
+        x+=55
+    ){
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            x,
+            85
+        );
+
+        ctx.lineTo(
+            x,
+            625
+        );
+
+        ctx.stroke();
+
+    }
+
+}
+
+
+/* =====================================================
+   주차칸
+===================================================== */
+
+function drawParking(){
+
+    if(!parking){
+        return;
+    }
+
+
+    const left =
+        parking.x-parking.w/2;
+
+    const top =
+        parking.y-parking.h/2;
+
+
+    ctx.save();
+
+
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 3;
+
+    ctx.setLineDash([
+        8,
+        7
+    ]);
+
+
+    ctx.strokeRect(
+        left,
+        top,
+        parking.w,
+        parking.h
+    );
+
+
+    ctx.setLineDash([]);
+
+
+    /*
+       방향 안내
+    */
+
+    ctx.fillStyle =
+        "rgba(255,255,255,.45)";
+
+    ctx.font = "bold 12px Arial";
+
+    ctx.textAlign = "center";
+
+
+    ctx.fillText(
+        parking.orientation === "vertical"
+        ? "VERTICAL"
+        : "HORIZONTAL",
+        parking.x,
+        parking.y+4
+    );
+
+
+    ctx.restore();
+
+}
+
+
+/* =====================================================
+   콘
+===================================================== */
+
+function drawCones(){
+
+    for(const cone of cones){
+
+        ctx.save();
+
+        ctx.translate(
+            cone.x,
+            cone.y
+        );
+
+
+        ctx.fillStyle = "#ff7900";
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            0,
+            -12
+        );
+
+        ctx.lineTo(
+            -9,
+            9
+        );
+
+        ctx.lineTo(
+            9,
+            9
+        );
+
+        ctx.closePath();
+
+        ctx.fill();
+
+
+        ctx.fillStyle = "#fff";
+
+        ctx.fillRect(
+            -7,
+            1,
+            14,
+            3
+        );
+
+
+        ctx.restore();
+
+    }
+
+}
+
+
+/* =====================================================
+   보행자
+===================================================== */
+
+function drawPedestrians(){
+
+    for(const p of pedestrians){
+
+        ctx.save();
+
+        ctx.translate(
+            p.x,
+            p.y
+        );
+
+
+        ctx.fillStyle = "#e0b38a";
+
+        ctx.beginPath();
+
+        ctx.arc(
+            0,
+            -9,
+            5,
+            0,
+            Math.PI*2
+        );
+
+        ctx.fill();
+
+
+        ctx.strokeStyle = "#4fc3f7";
+        ctx.lineWidth = 4;
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            0,
+            -4
+        );
+
+        ctx.lineTo(
+            0,
+            9
+        );
+
+
+        ctx.moveTo(
+            0,
+            0
+        );
+
+        ctx.lineTo(
+            -7,
+            6
+        );
+
+
+        ctx.moveTo(
+            0,
+            0
+        );
+
+        ctx.lineTo(
+            7,
+            6
+        );
+
+
+        ctx.moveTo(
+            0,
+            9
+        );
+
+        ctx.lineTo(
+            -5,
+            17
+        );
+
+
+        ctx.moveTo(
+            0,
+            9
+        );
+
+        ctx.lineTo(
+            5,
+            17
+        );
+
+
+        ctx.stroke();
+
+        ctx.restore();
+
+    }
+
+}
+
+
+/* =====================================================
+   둥근 사각형
+===================================================== */
+
+function roundedRect(
+    ctx,
+    x,
+    y,
+    w,
+    h,
+    r
+){
+
+    r = Math.min(
+        r,
+        Math.abs(w)/2,
+        Math.abs(h)/2
+    );
+
+
+    ctx.beginPath();
+
+    ctx.moveTo(
+        x+r,
+        y
+    );
+
+    ctx.lineTo(
+        x+w-r,
+        y
+    );
+
+    ctx.quadraticCurveTo(
+        x+w,
+        y,
+        x+w,
+        y+r
+    );
+
+    ctx.lineTo(
+        x+w,
+        y+h-r
+    );
+
+    ctx.quadraticCurveTo(
+        x+w,
+        y+h,
+        x+w-r,
+        y+h
+    );
+
+    ctx.lineTo(
+        x+r,
+        y+h
+    );
+
+    ctx.quadraticCurveTo(
+        x,
+        y+h,
+        x,
+        y+h-r
+    );
+
+    ctx.lineTo(
+        x,
+        y+r
+    );
+
+    ctx.quadraticCurveTo(
+        x,
+        y,
+        x+r,
+        y
+    );
+
+    ctx.closePath();
+
+}
+
+
+/* =====================================================
+   자동차
+===================================================== */
+
+function drawCar(
+    x,
+    y,
+    w,
+    h,
+    angle,
+    color,
+    isPlayer
+){
+
+    ctx.save();
+
+    ctx.translate(
+        x,
+        y
+    );
+
+    ctx.rotate(angle);
+
+
+    /*
+       그림자
+    */
+
+    ctx.fillStyle =
+        "rgba(0,0,0,.38)";
+
+    ctx.beginPath();
+
+    ctx.ellipse(
+        3,
+        5,
+        w*.62,
+        h*.54,
+        0,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+
+    /*
+       바퀴
+    */
+
+    ctx.fillStyle = "#111";
+
+
+    const wheelW =
+        Math.max(
+            7,
+            w*.19
+        );
+
+
+    const wheelH =
+        Math.max(
+            16,
+            h*.18
+        );
+
+
+    ctx.fillRect(
+        -w/2-wheelW/2+2,
+        -h*.30,
+        wheelW,
+        wheelH
+    );
+
+    ctx.fillRect(
+        w/2-wheelW/2-2,
+        -h*.30,
+        wheelW,
+        wheelH
+    );
+
+    ctx.fillRect(
+        -w/2-wheelW/2+2,
+        h*.12,
+        wheelW,
+        wheelH
+    );
+
+    ctx.fillRect(
+        w/2-wheelW/2-2,
+        h*.12,
+        wheelW,
+        wheelH
+    );
+
+
+    /*
+       차체
+    */
+
+    ctx.fillStyle = color;
+
+    roundedRect(
+        ctx,
+        -w/2,
+        -h/2,
+        w,
+        h,
+        7
+    );
+
+    ctx.fill();
+
+
+    /*
+       앞유리
+    */
+
+    ctx.fillStyle =
+        "rgba(30,45,55,.9)";
+
+    roundedRect(
+        ctx,
+        -w*.36,
+        -h*.37,
+        w*.72,
+        h*.20,
+        4
+    );
+
+    ctx.fill();
+
+
+    /*
+       뒷유리
+    */
+
+    ctx.fillStyle =
+        "rgba(30,45,55,.82)";
+
+    roundedRect(
+        ctx,
+        -w*.35,
+        h*.17,
+        w*.70,
+        h*.16,
+        4
+    );
+
+    ctx.fill();
+
+
+    /*
+       헤드라이트
+    */
+
+    ctx.fillStyle = "#fff5a0";
+
+    ctx.fillRect(
+        -w*.36,
+        -h*.48,
+        w*.20,
+        5
+    );
+
+    ctx.fillRect(
+        w*.16,
+        -h*.48,
+        w*.20,
+        5
+    );
+
+
+    /*
+       후미등
+    */
+
+    ctx.fillStyle = "#ff3030";
+
+    ctx.fillRect(
+        -w*.36,
+        h*.43,
+        w*.20,
+        5
+    );
+
+    ctx.fillRect(
+        w*.16,
+        h*.43,
+        w*.20,
+        5
+    );
+
+
+    /*
+       범퍼
+    */
+
+    ctx.fillStyle =
+        "rgba(20,20,20,.65)";
+
+    ctx.fillRect(
+        -w*.43,
+        -h*.51,
+        w*.86,
+        4
+    );
+
+    ctx.fillRect(
+        -w*.43,
+        h*.47,
+        w*.86,
+        4
+    );
+
+
+    /*
+       사이드미러
+    */
+
+    ctx.fillStyle = "#111";
+
+    ctx.fillRect(
+        -w*.58,
+        -h*.25,
+        7,
+        12
+    );
+
+    ctx.fillRect(
+        w*.51,
+        -h*.25,
+        7,
+        12
+    );
+
+
+    /*
+       버스
+    */
+
+    if(
+        isPlayer &&
+        selectedCar === "bus"
+    ){
+
+        ctx.strokeStyle =
+            "rgba(255,255,255,.28)";
+
+        ctx.lineWidth = 2;
+
+
+        for(
+            let yy=-h*.05;
+            yy<h*.20;
+            yy+=18
+        ){
+
+            ctx.beginPath();
+
+            ctx.moveTo(
+                -w*.42,
+                yy
+            );
+
+            ctx.lineTo(
+                w*.42,
+                yy
+            );
+
+            ctx.stroke();
+
+        }
+
+    }
+
+
+    /*
+       트럭
+    */
+
+    if(
+        isPlayer &&
+        selectedCar === "truck"
+    ){
+
+        ctx.strokeStyle =
+            "rgba(255,255,255,.3)";
+
+        ctx.lineWidth = 2;
+
+
+        ctx.strokeRect(
+            -w*.38,
+            0,
+            w*.76,
+            h*.38
+        );
+
+
+        ctx.strokeRect(
+            -w*.30,
+            h*.08,
+            w*.60,
+            h*.22
+        );
+
+    }
+
+
+    ctx.restore();
+
+}
+
+
+/* =====================================================
+   렌더링
+===================================================== */
+
+function render(){
+
+    ctx.clearRect(
+        0,
+        0,
+        W,
+        H
+    );
+
+
+    drawBackground();
+
+    drawParking();
+
+
+    for(const car of parkedCars){
+
+        drawCar(
+            car.x,
+            car.y,
+            car.w,
+            car.h,
+            car.angle,
+            car.color,
+            false
+        );
+
+    }
+
+
+    drawCones();
+
+    drawPedestrians();
+
+
+    /*
+       충돌 후 깜빡임
+    */
+
+    if(
+        performance.now() <
+        invulnerableUntil
+    ){
+
+        if(
+            Math.floor(
+                performance.now()/100
+            )%2 === 0
+        ){
+
+            return;
+
+        }
+
+    }
+
+
+    drawCar(
+        player.x,
+        player.y,
+        player.w,
+        player.h,
+        player.angle,
+        player.color,
+        true
+    );
+
+}
+
+
+/* =====================================================
+   게임 루프
+===================================================== */
+
+let lastTime = performance.now();
+
+
+function gameLoop(now){
+
+    const dt =
+        Math.min(
+            (now-lastTime)/1000,
+            .05
+        );
+
+
+    lastTime = now;
+
+
+    if(gameRunning){
+
+        updatePlayer();
+
+        updatePedestrians();
+
+        checkCollisions();
+
+
+        /*
+           핵심 주차 판정
+        */
+
+        if(
+            !stageChanging &&
+            isParked()
+        ){
+
+            clearStage();
+
+        }
+
+
+        timeLeft -= dt;
+
+
+        if(timeLeft <= 0){
+
+            timeLeft = 0;
+
+            timeOver();
+
+        }
+
+
+        updateUI();
+
+    }
+
+
+    render();
+
+
+    requestAnimationFrame(
+        gameLoop
+    );
+
+}
+
+
+/* =====================================================
+   키보드
+===================================================== */
+
+window.addEventListener(
+    "keydown",
+    function(e){
+
+        keys[e.key] = true;
+
+
+        if(
+            e.key === "ArrowUp" ||
+            e.key === "ArrowDown" ||
+            e.key === "ArrowLeft" ||
+            e.key === "ArrowRight" ||
+            e.key === " "
+        ){
+
+            e.preventDefault();
+
+        }
+
+    }
+);
+
+
+window.addEventListener(
+    "keyup",
+    function(e){
+
+        keys[e.key] = false;
+
+    }
+);
+
+
+/* =====================================================
+   차량 선택
+===================================================== */
+
+document
+.querySelectorAll(".selectBtn")
+.forEach(function(button){
+
+    button.addEventListener(
+        "click",
+        function(){
+
+            document
+            .querySelectorAll(".selectBtn")
+            .forEach(function(b){
+
+                b.classList.remove(
+                    "selected"
+                );
+
+            });
+
+
+            button.classList.add(
+                "selected"
+            );
+
+
+            selectedCar =
+                button.dataset.car;
+
+        }
+    );
+
+});
+
+
+/* =====================================================
+   색상 선택
+===================================================== */
+
+document
+.querySelectorAll(".colorBtn")
+.forEach(function(button){
+
+    button.addEventListener(
+        "click",
+        function(){
+
+            document
+            .querySelectorAll(".colorBtn")
+            .forEach(function(b){
+
+                b.classList.remove(
+                    "selected"
+                );
+
+            });
+
+
+            button.classList.add(
+                "selected"
+            );
+
+
+            selectedColor =
+                button.dataset.color;
+
+        }
+    );
+
+});
+
+
+/* =====================================================
+   게임 시작
+===================================================== */
+
+document
+.getElementById("startButton")
+.addEventListener(
+    "click",
+    function(){
+
+        applySelectedCar();
+
+
+        stage = 1;
+        totalScore = 0;
+        lives = 3;
+
+        gameRunning = true;
+        stageChanging = false;
+
+
+        document.getElementById(
+            "startScreen"
+        ).style.display = "none";
+
+
+        document.getElementById(
+            "endScreen"
+        ).style.display = "none";
+
+
+        startStage();
+
+
+        initAudio();
+
+        startMusic();
+
+    }
+);
+
+
+/* =====================================================
+   다시 시작
+===================================================== */
+
+document
+.getElementById("retryButton")
+.addEventListener(
+    "click",
+    function(){
+
+        applySelectedCar();
+
+
+        stage = 1;
+        totalScore = 0;
+        lives = 3;
+
+
+        document.getElementById(
+            "endScreen"
+        ).style.display = "none";
+
+
+        gameRunning = true;
+        stageChanging = false;
+
+
+        startStage();
+
+
+        initAudio();
+
+        startMusic();
+
+    }
+);
+
+
+/* =====================================================
+   차량 다시 선택
+===================================================== */
+
+document
+.getElementById("changeCarButton")
+.addEventListener(
+    "click",
+    function(){
+
+        document.getElementById(
+            "endScreen"
+        ).style.display = "none";
+
+
+        document.getElementById(
+            "startScreen"
+        ).style.display = "flex";
+
+
+        gameRunning = false;
+
+    }
+);
+
+
+/* =====================================================
+   BGM
+===================================================== */
+
+let audioContext = null;
+let masterGain = null;
+let musicInterval = null;
+let musicEnabled = true;
+let musicStep = 0;
+
+
+function initAudio(){
+
+    if(audioContext){
+        return;
+    }
+
+
+    try{
+
+        const Audio =
+            window.AudioContext ||
+            window.webkitAudioContext;
+
+
+        if(!Audio){
+            return;
+        }
+
+
+        audioContext =
+            new Audio();
+
+
+        masterGain =
+            audioContext.createGain();
+
+
+        masterGain.gain.value = .22;
+
+        masterGain.connect(
+            audioContext.destination
+        );
+
+
+    }catch(e){
+
+        audioContext = null;
+
+    }
+
+}
+
+
+function playTone(
+    frequency,
+    duration,
+    volume,
+    type
+){
+
+    if(
+        !audioContext ||
+        !masterGain
+    ){
+        return;
+    }
+
+
+    try{
+
+        const oscillator =
+            audioContext.createOscillator();
+
+
+        const gain =
+            audioContext.createGain();
+
+
+        oscillator.type = type;
+
+        oscillator.frequency.value =
+            frequency;
+
+
+        gain.gain.setValueAtTime(
+            volume,
+            audioContext.currentTime
+        );
+
+
+        gain.gain.exponentialRampToValueAtTime(
+            .001,
+            audioContext.currentTime+
+            duration
+        );
+
+
+        oscillator.connect(gain);
+
+        gain.connect(masterGain);
+
+
+        oscillator.start();
+
+        oscillator.stop(
+            audioContext.currentTime+
+            duration
+        );
+
+    }catch(e){}
+
+}
+
+
+function musicBeat(){
+
+    if(
+        !musicEnabled ||
+        !audioContext
+    ){
+        return;
+    }
+
+
+    const notes = [
+        220,
+        277,
+        330,
+        277
+    ];
+
+
+    playTone(
+        notes[musicStep%4],
+        .13,
+        .09,
+        "square"
+    );
+
+
+    if(musicStep%4 === 0){
+
+        playTone(
+            55,
+            .18,
+            .07,
+            "sine"
+        );
+
+    }
+
+
+    musicStep++;
+
+}
+
+
+function startMusic(){
+
+    if(!audioContext){
+        return;
+    }
+
+
+    if(audioContext.state === "suspended"){
+
+        audioContext.resume();
+
+    }
+
+
+    if(musicInterval){
+        clearInterval(musicInterval);
+    }
+
+
+    musicStep = 0;
+
+    musicBeat();
+
+
+    musicInterval =
+        setInterval(
+            musicBeat,
+            180
+        );
+
+}
+
+
+function stopMusic(){
+
+    if(musicInterval){
+
+        clearInterval(
+            musicInterval
+        );
+
+        musicInterval = null;
+
+    }
+
+}
+
+
+document
+.getElementById("musicButton")
+.addEventListener(
+    "click",
+    function(){
+
+        musicEnabled =
+            !musicEnabled;
+
+
+        this.textContent =
+            musicEnabled
+            ? "♪ BGM ON"
+            : "♪ BGM OFF";
+
+
+        if(musicEnabled){
+
+            initAudio();
+
+            startMusic();
+
+        }else{
+
+            stopMusic();
+
+        }
+
+    }
+);
+
+
+/* =====================================================
+   최초 실행
+===================================================== */
+
+applySelectedCar();
+
+updateUI();
+
+requestAnimationFrame(
+    gameLoop
+);
+
+</script>
+
+</body>
+</html>
